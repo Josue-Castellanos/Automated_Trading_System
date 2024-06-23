@@ -190,12 +190,12 @@ def _ParamsParser(params):
     return params
 
 
-def _TimeConverter(dt, format="epoch"):
-    if(format == "epoch" and dt != None):
+def _TimeConverter(dt, format=None):
+    if format == "epoch" and dt is not None:
         return int(dt.timestamp() * 1000)
-    # elif(format == "blank" and dt != None):
-    #     # 
-    elif(dt == None):
+    elif format == "iso" and dt is not None:
+        return dt+'T00:00:00.000Z'
+    elif dt == None:
         return None
     
         
@@ -218,7 +218,7 @@ class Schwab:
     # ---- ORDERS -----
     @staticmethod
     def getOrders(maxResults, fromEnteredTime, toEnteredTime, accountNumber=None, status= None):
-        return _RequestHandler(requests.get(f'{ACCOUNT_ENDPOINT}/accounts/{accountNumber}/orders', headers={"Accept": "application/json", 'Authorization': f'Bearer {tokens.accessToken}'}, params=_ParamsParser({'maxResults': maxResults, 'fromEnteredTime': fromEnteredTime, 'toEnteredTime': toEnteredTime, 'status': status})))
+        return _RequestHandler(requests.get(f'{ACCOUNT_ENDPOINT}/accounts/{accountNumber}/orders', headers={"Accept": "application/json", 'Authorization': f'Bearer {tokens.accessToken}'}, params=_ParamsParser({'maxResults': maxResults, 'fromEnteredTime': _TimeConverter(fromEnteredTime, format="iso"), 'toEnteredTime': _TimeConverter(toEnteredTime, format="iso"), 'status': status})))
     
     @staticmethod
     def postOrders(order, accountNumber=None):
@@ -246,4 +246,4 @@ class Schwab:
     # ----- PRICE HISTORY -----
     @staticmethod 
     def getPriceHistory(symbol, periodType=None, period=None, frequencyType=None, frequency=None, startDate=None, endDate=None, needExtendedHoursData=None, needPreviousClose=None):
-        return _RequestHandler(requests.get(f'{MARKET_ENDPOINT}/pricehistory', headers={"Accept": "application/json", 'Authorization': f'Bearer {tokens.accessToken}'}, params=_ParamsParser({'symbol': symbol, 'periodType': periodType, 'period': period, 'frequencyType': frequencyType, 'frequency': frequency, 'startDate': _TimeConverter(startDate), 'endDate': _TimeConverter(endDate), 'needExtendedHoursData': needExtendedHoursData, 'needPreviousClose': needPreviousClose})))
+        return _RequestHandler(requests.get(f'{MARKET_ENDPOINT}/pricehistory', headers={"Accept": "application/json", 'Authorization': f'Bearer {tokens.accessToken}'}, params=_ParamsParser({'symbol': symbol, 'periodType': periodType, 'period': period, 'frequencyType': frequencyType, 'frequency': frequency, 'startDate': _TimeConverter(startDate, format="epoch"), 'endDate': _TimeConverter(endDate, format="epoch"), 'needExtendedHoursData': needExtendedHoursData, 'needPreviousClose': needPreviousClose})))

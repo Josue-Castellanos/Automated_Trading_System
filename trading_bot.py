@@ -27,7 +27,7 @@ def putEventHandler(PUTEVENT):
         if best_put_contract == None:
             pass
         else:
-            _InPosition(best_put_contract, 'P')
+            _GetInPosition(best_put_contract, 'P')
         PUTEVENT.clear()
         
 
@@ -43,42 +43,42 @@ def callEventHandler(CALLEVENT):
         if best_call_contract == None:
             pass
         else:
-            _InPosition(best_call_contract, 'C')
+            _GetInPosition(best_call_contract, 'C')
         CALLEVENT.clear()
 
 
 def _BestContract(type):
     # Check if there is a ACTIVE call order, if so, sell it and continue with buying process of put order
-        # Get Chain Option                       6
-        options = Schwab.getChains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', TODAY, TODAY)
-        strike_price_df = data_manager.createDataFrame(options = options, type = type)
+    # Get Chain Option                       6
+    options = Schwab.getChains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', TOMORROW, TOMORROW)
+    strike_price_df = data_manager.createDataFrame(options = options, type = type)
 
-        # Search through Dataframe to see whats the best delta and near the money contracts 
-        if type == 'PUT':
-            filtered_delta_result = strike_price_df.loc[strike_price_df['Delta'] <= -0.18]
+    # Search through Dataframe to see whats the best delta and near the money contracts 
+    if type == 'PUT':
+        filtered_delta_result = strike_price_df.loc[strike_price_df['Delta'] <= -0.18]
 
-        elif type == 'CALL':
-            filtered_delta_result = strike_price_df.loc[strike_price_df['Delta'] >= 0.18]
+    elif type == 'CALL':
+        filtered_delta_result = strike_price_df.loc[strike_price_df['Delta'] >= 0.18]
 
-        # Search through the filtered delta results for contracts with a reasonable Ask price
-        filtered_ask_result = filtered_delta_result.loc[filtered_delta_result['Ask'] <= 0.46]
+    # Search through the filtered delta results for contracts with a reasonable Ask price
+    filtered_ask_result = filtered_delta_result.loc[filtered_delta_result['Ask'] <= 0.46]
 
-        # Calculate ROI for best contract
+    # Calculate ROI for best contract
 
-        # Pick the top contract
-        if not filtered_ask_result.empty:
-            contract = filtered_ask_result.iloc[0]
+    # Pick the top contract
+    if not filtered_ask_result.empty:
+        contract = filtered_ask_result.iloc[0]
 
-            # Create Order Object for post request
-            buy_order = _CreateOrder(contract.get('Ask'), contract.get('Symbol'), 'BUY')
-        
-            return buy_order
-        else:
-            print("ERROR: No contracts met conditions, ignore signal")
-            return None
-            
+        # Create Order Object for post request
+        buy_order = _CreateOrder(contract.get('Ask'), contract.get('Symbol'), 'BUY')
+    
+        return buy_order
+    else:
+        print("ERROR: No contracts met conditions, ignore signal")
+        return None
+  
 
-def _InPosition(order,type):
+def _GetInPosition(order,type):
     # Get encrypted account number (hash value)
     hash = Schwab.accountNumbers()[0].get('hashValue')
     # Place order
@@ -88,12 +88,12 @@ def _InPosition(order,type):
     # Periodically check the Delta
     while True:
         # Wait for 60 seconds
-        time.sleep(30)
+        time.sleep(5)
 
         inPosition = True
         # Get all orders
-        orders = Schwab.getOrders(10, '2024-05-30T00:00:00.000Z', '2024-06-05T00:00:00.000Z', accountNumber=hash, status='FILLED') 
-        # ACCEPTED, PENDING_ACTIVATION, REJECTED, CANCELED, REPLACED, FILLED, EXPIRED, NEW
+        orders = Schwab.getOrders(10, TODAY, FRIDAY, accountNumber=hash, status='PENDING_ACTIVATION') 
+        # ACCEPTED, PENDING_ACTIVATION, REJECTED, CANCELED, REPLACED, FILLED, EXPIRED, NEW, 
 
         # Extract OrderID's to check the contracts ROI%
         order_ids = [order["orderId"] for order in orders]
@@ -132,7 +132,7 @@ def _CheckInPosition():
     hash = Schwab.accountNumbers()[0].get('hashValue')
 
      # Get all orders
-    orders = Schwab.getOrders(10, '2024-05-30T00:00:00.000Z', '2024-06-05T00:00:00.000Z', accountNumber=hash, status='PENDING_ACTIVATION') 
+    orders = Schwab.getOrders(10, TODAY, FRIDAY, accountNumber=hash, status='PENDING_ACTIVATION') 
     # ACCEPTED, PENDING_ACTIVATION, REJECTED, CANCELED, REPLACED, FILLED, EXPIRED, NEW
 
     if not orders:
