@@ -22,9 +22,9 @@ def _CheckMarketTime():
 
     # Check if market is closed
     if now > market_close_time:
-        date = datetime.now() + timedelta(days=1)
+        date = now + timedelta(days=1)
     else:
-        date = now
+        date = now + timedelta(days=1)
         
     return date.strftime("%Y-%m-%d")
 
