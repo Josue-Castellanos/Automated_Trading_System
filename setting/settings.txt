@@ -1,0 +1,19 @@
+{
+    "auto_start": false,
+    "auto_start_time": "06:30",
+    "auto_end_time": "13:00",
+    "max_position_size": 1,
+    "max_profit_percentage": 200.0,
+    "max_loss_percentage": 50.0,
+    "max_contract_price": 0.46,
+    "least_delta": 0.2,
+    "strategies": [
+        "Call",
+        "CALL",
+        "C",
+        "Put",
+        "PUT",
+        "P",
+        "ALL"
+    ]
+}

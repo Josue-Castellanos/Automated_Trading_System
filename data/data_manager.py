@@ -6,12 +6,12 @@ class DataManager:
     PUT_OI_CSV_PATH = "./data/high_oi/puts_oi.csv"
     CALL_OI_CSV_PATH = "./data/high_oi/calls_oi.csv"
     OPTION_CSV_PATH = './data/option_chains/option_chain.csv'
-    CANDLE_CSV_PATH = './data/candle_history/candle_history.csv'
+    CANDLE_CSV_PATH = './data/candle_history'
     ORDER_CSV_PATH = './data/option_chains/orders.csv'
 
     @staticmethod
-    def store_data(data_type, df):
-        csv_path = DataManager._get_csv_path(data_type)
+    def store_data(data_type, df, file_name):
+        csv_path = DataManager._get_csv_path(data_type, file_name)
         file_exists = os.path.isfile(csv_path)
         mode = 'a' if file_exists else 'w'
         header = not file_exists
@@ -36,8 +36,18 @@ class DataManager:
     def _create_candle_dataframe(candles):
         data = []
         for ohlcv in candles['candles']:
+            datetime_value = ohlcv.get('datetime')
+            try:
+                # Try to parse datetime as milliseconds since epoch
+                datetime_parsed = pd.to_datetime(datetime_value, unit='ms')
+            except (ValueError, TypeError):
+                # If the above fails, treat it as a standard string format
+                datetime_parsed = pd.to_datetime(datetime_value)
+            # Adjust for timezone difference
+            datetime_adjusted = datetime_parsed - timedelta(hours=7)
+
             candle_data = {
-                'Datetime': pd.to_datetime(ohlcv.get('datetime'), unit='ms') - timedelta(hours=7),
+                'Datetime': datetime_adjusted,
                 'Open': ohlcv.get('open'),
                 'High': ohlcv.get('high'),
                 'Low': ohlcv.get('low'),
@@ -99,9 +109,9 @@ class DataManager:
         return df
 
     @staticmethod
-    def _get_csv_path(data_type):
+    def _get_csv_path(data_type, file_name):
         if data_type == 'candles':
-            return DataManager.CANDLE_CSV_PATH
+            return os.path.join(DataManager.CANDLE_CSV_PATH, file_name)
         elif data_type == 'options':
             return DataManager.OPTION_CSV_PATH
         elif data_type in ['high_oi_calls', 'calls']:
@@ -114,6 +124,7 @@ class DataManager:
             raise ValueError(f"Unsupported data type: {data_type}")
 
     @staticmethod
+    # Needs work
     def load_data(data_type):
         csv_path = DataManager._get_csv_path(data_type)
         if os.path.exists(csv_path):
