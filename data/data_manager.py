@@ -9,6 +9,7 @@ class DataManager:
     CANDLE_CSV_PATH = './data/candle_history'
     ORDER_CSV_PATH = './data/option_chains/orders.csv'
 
+
     @staticmethod
     def store_data(data_type, df, file_name):
         csv_path = DataManager._get_csv_path(data_type, file_name)
@@ -18,6 +19,7 @@ class DataManager:
 
         with open(csv_path, mode) as f:
             df.to_csv(f, header=header, index=False, float_format='%.2f', sep='\t')
+
 
     @staticmethod
     def create_dataframe(data_type, data):
@@ -31,6 +33,7 @@ class DataManager:
             return DataManager._create_order_dataframe(data)
         else:
             raise ValueError(f"Unsupported data type: {data_type}")
+
 
     @staticmethod
     def _create_candle_dataframe(candles):
@@ -57,6 +60,7 @@ class DataManager:
             data.append(candle_data)
         return pd.DataFrame(data)
 
+
     @staticmethod
     def _create_option_dataframe(options):
         data = []
@@ -80,6 +84,7 @@ class DataManager:
                     data.append(option_data)
         return pd.DataFrame(data)
 
+
     @staticmethod
     def _create_high_oi_dataframe(data):
         now = datetime.now().strftime("%m/%d/%Y")
@@ -98,6 +103,7 @@ class DataManager:
         })
         return df
 
+
     @staticmethod
     def _create_order_dataframe(order):
         df = pd.DataFrame([order])
@@ -107,6 +113,7 @@ class DataManager:
         df['AssetType'] = df['orderLegCollection'].apply(lambda x: x[0]['instrument']['assetType'])
         df = df[['Instruction', 'Symbol', 'price', 'Quantity', 'AssetType']]
         return df
+
 
     @staticmethod
     def _get_csv_path(data_type, file_name):
@@ -122,6 +129,7 @@ class DataManager:
             return DataManager.ORDER_CSV_PATH
         else:
             raise ValueError(f"Unsupported data type: {data_type}")
+
 
     @staticmethod
     # Needs work

@@ -47,14 +47,14 @@ class ClientGUI(QMainWindow):
 
         # Current positions
         main_layout.addWidget(QLabel("Current Positions:"))
-        self.positions_table = QTableWidget(0, 6)
-        self.positions_table.setHorizontalHeaderLabels(["Symbol", "Price", "Quantity", "P/L%", "Delta", "Alert"])
+        self.positions_table = QTableWidget(0, 5)
+        self.positions_table.setHorizontalHeaderLabels(["Symbol", "Quantity", "Price", "P/L%", "Alert"])
         main_layout.addWidget(self.positions_table)
 
         # Recent trades
         main_layout.addWidget(QLabel("Recent Trades:"))
-        self.trades_table = QTableWidget(0, 7)
-        self.trades_table.setHorizontalHeaderLabels(["Status", "Symbol", "Price", "Quantity", "P/L%", "Delta", "Alert"])
+        self.trades_table = QTableWidget(0, 6)
+        self.trades_table.setHorizontalHeaderLabels(["Status", "Symbol", "Quantity", "Price", "P/L%", "Alert"])
         main_layout.addWidget(self.trades_table)
 
         self.tabs.addTab(main_tab, "Main")
@@ -118,11 +118,11 @@ class ClientGUI(QMainWindow):
         candles_layout.addWidget(self.file_name, 7, 1)
 
         # Save Button
-        request_button = QPushButton("Start")
+        request_button = QPushButton("Request")
         request_button.clicked.connect(self.request_candle_history)
         candles_layout.addWidget(request_button, 9, 0, 1, 2)
 
-        self.tabs.addTab(candles_tab, "Candles")
+        self.tabs.addTab(candles_tab, "Ticker History")
 
 
     def create_settings_tab(self):
@@ -279,7 +279,8 @@ class ClientGUI(QMainWindow):
 
     def load_settings(self):
         try:
-            with open('/Users/josuecastellanos/Documents/Automated_Trading_System/setting/settings.txt', 'r') as f:
+            # /Users/josuecastellanos/Documents/Automated_Trading_System/setting/settings.txt
+            with open('C:\\Users\jcast\\repos\\Automated_Trading_System\\setting\\settings.txt', 'r') as f:
                 settings = json.load(f)
             
             self.auto_start_toggle.setText("On" if settings.get('auto_start', False) else "Off")
@@ -388,7 +389,7 @@ class ClientGUI(QMainWindow):
 
 
     def stop_bot(self):
-        # TODO: Stop Gmail from reading messages as well
+        # TODO: Stop Gmail from reading messages as well, FIXED 
         self.client.gmail.set_checker(False)
 
         self.status_label.setText("Stopped")
@@ -405,39 +406,41 @@ class ClientGUI(QMainWindow):
         self.log_text.append(f"[{timestamp}] {message}")
 
 
-    def update_positions(self, symbol, price, quantity, profit_loss, delta, alert):
+    def update_positions(self, symbol, price, quantity, profit_loss, alert):
         # Check if the symbol is already in the table
         if symbol in self.positions:
             row = self.positions[symbol]
             # Update price and quantity
-            self.positions_table.setItem(row, 1, QTableWidgetItem(str(price)))
-            self.positions_table.setItem(row, 2, QTableWidgetItem(str(quantity)))
+            self.positions_table.setItem(row, 1, QTableWidgetItem(str(quantity)))
+            self.positions_table.setItem(row, 2, QTableWidgetItem(str(price)))
             self.positions_table.setItem(row, 3, QTableWidgetItem(str(profit_loss)))
         else:
             # Add new row
             row = self.positions_table.rowCount()
             self.positions_table.insertRow(row)
             self.positions_table.setItem(row, 0, QTableWidgetItem(symbol))
-            self.positions_table.setItem(row, 1, QTableWidgetItem(str(price)))
-            self.positions_table.setItem(row, 2, QTableWidgetItem(str(quantity)))
+            self.positions_table.setItem(row, 1, QTableWidgetItem(str(quantity)))
+            self.positions_table.setItem(row, 2, QTableWidgetItem(str(price)))
             self.positions_table.setItem(row, 3, QTableWidgetItem(str(profit_loss)))
-            self.positions_table.setItem(row, 4, QTableWidgetItem(str(delta)))
-            self.positions_table.setItem(row, 5, QTableWidgetItem(str(alert)))
+            self.positions_table.setItem(row, 4, QTableWidgetItem(str(alert)))
 
             self.positions[symbol] = row
 
 
-    def update_trades(self, status, symbol, price, quantity, profit_loss, delta, alert):
+    def update_trades(self, status, symbol, price, quantity, profit_loss=None, alert=None):
         # Add a new row to the trades table
         row = self.trades_table.rowCount()
         self.trades_table.insertRow(row)
         self.trades_table.setItem(row, 0, QTableWidgetItem(status))
         self.trades_table.setItem(row, 1, QTableWidgetItem(symbol))
-        self.trades_table.setItem(row, 2, QTableWidgetItem(str(price)))
-        self.trades_table.setItem(row, 3, QTableWidgetItem(str(quantity)))
-        self.trades_table.setItem(row, 4, QTableWidgetItem(str(profit_loss)))
-        self.trades_table.setItem(row, 5, QTableWidgetItem(str(delta)))
-        self.trades_table.setItem(row, 6, QTableWidgetItem(str(alert)))
+        self.trades_table.setItem(row, 2, QTableWidgetItem(str(quantity)))
+        self.trades_table.setItem(row, 3, QTableWidgetItem(str(price)))
+        self.trades_table.setItem(row, 5, QTableWidgetItem(str(alert)))
+             
+        if status == "SOLD":            
+            self.trades_table.setItem(row, 4, QTableWidgetItem(str(profit_loss)))
+    
+        
 
 
 

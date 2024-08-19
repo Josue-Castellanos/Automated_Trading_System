@@ -1,3 +1,4 @@
+from crypt import methods
 import json
 import threading
 import time
@@ -13,8 +14,8 @@ from strategy import high_open_interest
 class Client(QThread):
     log_signal = pyqtSignal(str)
     log_dict_signal = pyqtSignal(dict)
-    position_update_signal = pyqtSignal(str, float)
-    trade_update_signal = pyqtSignal(str, float)
+    position_update_signal = pyqtSignal(str, float, float, float, str)
+    trade_update_signal = pyqtSignal(str, str, float, float, float, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -90,7 +91,10 @@ class Client(QThread):
 
     def search_best_contract(self, type):
         self.log_signal.emit(f"Searching for best {type} contract...")
+        
+        # Request the option chain
         options = self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today).json()
+        # Create a dataframe of the options
         strike_price_df = self.database.create_dataframe('options', options)
 
         if type == 'PUT':
@@ -111,38 +115,60 @@ class Client(QThread):
 
     def get_in_position(self, order, type):
         self.log_signal.emit(f"Getting in {type} position...")
+        
+        # Request Hash value
         hash = self.schwab.account_numbers().json()[0].get('hashValue')
-
+        
         # Lets create the buy order with the best contract
         symbol = order["orderLegCollection"][0]["instrument"]["symbol"]
+        
+        # Buy in price
         price = order["price"]
 
         try:
+            # Post Buy Order
             self.schwab.post_orders(order, accountNumber=hash).json()
         except json.decoder.JSONDecodeError:
-            # self.database.create_dataframe('order', order)
-            self.trade_update_signal.emit("BOUGHT", symbol, price, )
+            # Update database
+            self.database.create_dataframe('order', order)
+            # Update trades table
+            self.trade_update_signal.emit("BOUGHT", symbol, price, self.get_max_position_size, "", "Alert")
         
         self.log_signal.emit("Checking contracts market value...")
+        
         inPosition = True
         while inPosition:
             time.sleep(10)
+            # Request open positions from account 
             open_position = self.schwab.account_number(hash, "positions").json()
             try:
+                # Symbol of open position
                 open_symbol = open_position["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
 
+                # Current Market Value of contract
                 market_value = open_position["securitiesAccount"]["positions"][0]["marketValue"]
-
                 market_value = market_value/100
-                self.position_update_signal.emit(f"Symbol:  {open_symbol}   Price: {market_value}")
 
-                # Possible implement sell_current_position() function here
-                if market_value >= price * self.get_max_profit_percentage() or market_value <= price * self.get_max_loss_percentage():
+                # Contract profit and loss percentage
+                profit_loss_percentage = self.ReturnOnInvestment(price, market_value)
+                
+                # Update positions table
+                self.position_update_signal.emit(open_symbol, market_value, self.get_max_position_size, profit_loss_percentage, "Alert")
+                
+                # TODO: Possibly implement sell_current_position() function here
+                if profit_loss_percentage >= self.get_max_profit_percentage() or profit_loss_percentage <= self.get_max_loss_percentage():
+                    # Create Sell Order
                     sell_order = self.create_order(round(market_value, 2), open_symbol, 'SELL')
+                    # Post Sell Order
                     self.schwab.post_orders(sell_order, accountNumber=hash).json()
+                    
             except json.decoder.JSONDecodeError:
-                self.trade_update_signal.emit("SOLD", symbol, market_value, 1.0 , profit_loss, "Alert")
-                self.trade_update_signal.emit(f"SOLD:  {open_symbol}    {market_value}")
+                # TODO: Implement sell order to database
+                # Update database
+                
+                # Update trades table
+                self.trade_update_signal.emit("SOLD", open_symbol, market_value, self.get_max_position_size , profit_loss_percentage, "Alert")
+                
                 inPosition = False
             except KeyError as e:
                 self.log_signal.emit(f"No open positions: {e}")
@@ -150,24 +176,38 @@ class Client(QThread):
                 break
 
 
+    def ReturnOnInvestment(self, buy_in_price, market_value):
+        price_change = market_value - buy_in_price
+        profit_loss_per_contract = price_change / buy_in_price
+        return profit_loss_per_contract * 100
+    
+    
     def sell_current_position(self, profit_loss=None):
+        # Request hash value
         hash = self.schwab.account_numbers().json()[0].get('hashValue')
+        # Request all open positions
         order = self.schwab.account_number(hash, "positions").json()
 
         try:
+            # Market value of the first order
             market_value = order["securitiesAccount"]["positions"][0]["marketValue"]
-            self.log_signal.emit("Open position found...")
-
             market_value = market_value/100
+
+            self.log_signal.emit("Open position found...")
             self.log_signal.emit(f"Market Value: {market_value}")
+            
+            # Order Symbol
             symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
+            # Create Sell Order
             sell_order = self.create_order(round(market_value, 2), symbol, 'SELL')
+            # Post Sell Order
             self.schwab.post_orders(sell_order, accountNumber=hash).json()
         except json.decoder.JSONDecodeError:
+            # Update database
             # self.database.create_dataframe('order', order)
             
             # TODO: figure out how to keep track of the quantity and what alert
-            self.trade_update_signal.emit("SOLD", symbol, market_value, 1.0 , profit_loss, "Alert")
+            self.trade_update_signal.emit("SOLD", symbol, market_value, self.get_max_position_size, profit_loss, "Alert")
         except KeyError as e:
             self.log_signal.emit(f"No positions found..{e}")
 
