@@ -3,62 +3,58 @@ import json
 import threading
 import time
 from datetime import datetime
-from setting.dates  import get_dates
-from PyQt5.QtCore import QThread, pyqtSignal
-from gmail.api import Gmail
+from setting.dates  import dates
+from cloud_services.apiV2 import Gmail
 from data.data_manager import DataManager
-from schwab.api import Schwab
+from schwab.apiV2 import Schwab
 from strategy import high_open_interest
 
 
-class Client(QThread):
-    log_signal = pyqtSignal(str)
-    log_dict_signal = pyqtSignal(dict)
-    position_update_signal = pyqtSignal(str, float, float, float, str)
-    trade_update_signal = pyqtSignal(str, str, float, float, float, str)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.call_strikes, self.put_strikes = high_open_interest.retrieveData()
-        self.schwab = Schwab(log_signal=self.log_signal)
-        self.schwab.request_input_signal.connect(parent.request_user_input)
-        self.gmail = Gmail(log_signal=self.log_signal)
+class Client():
+    def __init__(self):
+        #self.call_strikes, self.put_strikes = high_open_interest.retrieveData()
+        self.schwab = Schwab()
+        self.gmail = Gmail()
         self.database = DataManager()
-        self.settings = {}
-        self.schedule_auto_start = None
         self.max_position_size = None
         self.max_profit_percentage = None
         self.max_loss_percentage = None
         self.max_contract_price = None
         self.least_delta = None
-        self.strategies = None
-        self.today, self.tomorrow = get_dates()
+        self.adjusted_balance = None
+        self.DAY = 0
+        self.today, self.tomorrow = dates()
+        self.initialize()
 
 
-    def run(self):
-        self.log_signal.emit("Robot Connecting To API's...")
+    def initialize(self):
+        """
+
+        """
+        self.set_settings()
         self.schwab.update_tokens_automatic()
-        self.log_signal.emit("All APIs Authenticated!")
 
         # Make a Database in sql and authenticate the account here
-        self.database.create_dataframe('high_oi', self.call_strikes)
-        self.database.create_dataframe('high_oi', self.put_strikes)
-
-        self.log_signal.emit("Start Scrapping For Alerts...")
-        
-        # Check for open positions
-        self.check_open_position()
+        #self.database.create_dataframe('high_oi', self.call_strikes)
+        #self.database.create_dataframe('high_oi', self.put_strikes)
 
         threading.Thread(target=self.handleCallEvent, daemon=True).start()
-        threading.Thread(target=self.handlePutEvent, daemon=True).start()        
+        threading.Thread(target=self.handlePutEvent, daemon=True).start()  
+              
+        # Check for open positions
+        self.check_position(self.position_type())
+        self.gmail.set_checker(True)
+        self.gmail.check_email_automatic()
 
 
     def handlePutEvent(self):
+        """
+
+        """
         while True:
             self.gmail.get_put_event().wait()
             
             open_position = self.gmail.get_current_position()
-            self.log_signal.emit(f"Current position: {open_position}")
 
             if open_position != 'PUT':
                 self.sell_position()
@@ -66,20 +62,22 @@ class Client(QThread):
 
                 if put_contract is not None:
                     self.buy_position(put_contract, 'PUT')
+                    self.gmail.set_current_position('PUT')
                     self.check_position('PUT')
                     
                 self.gmail.reset_position()
-            else:
-                self.log_signal.emit("Ignoring PUT signal due to existing PUT position")
+
             self.gmail.get_put_event().clear()
 
 
     def handleCallEvent(self):
+        """
+
+        """
         while True:
             self.gmail.get_call_event().wait()
             
             open_position = self.gmail.get_current_position()
-            self.log_signal.emit(f"Current position: {open_position}")
 
             if open_position != 'CALL':
                 self.sell_position()
@@ -87,17 +85,19 @@ class Client(QThread):
 
                 if call_contract is not None:
                     self.buy_position(call_contract, 'CALL')
+                    self.gmail.set_current_position('CALL')
+
                     self.check_position('CALL')
                     
                 self.gmail.reset_position()
-            else:
-                self.log_signal.emit("Ignoring CALL signal due to existing CALL position")
+
             self.gmail.get_call_event().clear()
 
 
     def best_contract(self, type):
-        self.log_signal.emit(f"Searching for best {type} contract...")
-        
+        """
+
+        """        
         # Request the option chain
         options = self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today).json()
         # Create a dataframe of the options
@@ -115,13 +115,13 @@ class Client(QThread):
             buy_order = self.create_order(contract.get('Ask'), contract.get('Symbol'), 'BUY')
             return buy_order
         else:
-            self.log_signal.emit("ERROR: No contracts met conditions, ignore signal")
             return None
 
 
     def buy_position(self, order, type):
-        self.log_signal.emit(f"Buying {type} position...")
-        
+        """
+
+        """        
         # Request Hash value
         hash = self.schwab.account_numbers().json()[0].get('hashValue')
         
@@ -138,22 +138,21 @@ class Client(QThread):
             # Update database
             self.database.create_dataframe('order', order)
             # Update trades table
-            self.trade_update_signal.emit("BOUGHT", symbol, price, self.get_max_position_size, "", "Alert")
         
 
     def check_position(self, type):
-        self.log_signal.emit("Checking contracts market value...")
+        """
+
+        """
+        if type is None:
+            return
         
         # Request Hash value
         hash = self.schwab.account_numbers().json()[0].get('hashValue')
-        
-        # 
-        if self.gmail.get_current_position() is None:
-            self.gmail.set_current_position(type)
             
         inPosition = True
         while inPosition:
-            time.sleep(10)
+            time.sleep(1)
             # Request open positions from account 
             open_position = self.schwab.account_number(hash, "positions").json()
             try:
@@ -171,21 +170,23 @@ class Client(QThread):
                 profit_percentage = (price_change / price) * 100
                 
                 # Update positions table
-                self.position_update_signal.emit(symbol, market_value, self.get_max_position_size, profit_percentage, "Alert")
-                
-                # TODO: Possibly implement sell_current_position() function here
+                """
+                TODO: Remove % logic and use the market value to determine
+                """
                 if profit_percentage >= self.get_max_profit_percentage() or profit_percentage <= self.get_max_loss_percentage():
-                    self.sell_position(type, profit_percentage)
-                    
+                    self.sell_position(type)
+                    inPosition = False
+                    break   
             except KeyError as e:
-                self.log_signal.emit(f"No open positions: {e}")
                 inPosition = False
                 break
     
-    
-    def sell_position(self, type, profit_loss):
-        self.log_signal.emit(f"Selling {type} position...")
 
+    # TODO: Fix this logic becasue it sells when it doenst need
+    def sell_position(self):
+        """
+
+        """        
         # Request hash value
         hash = self.schwab.account_numbers().json()[0].get('hashValue')
         
@@ -196,8 +197,15 @@ class Client(QThread):
             # Market value of the first order
             market_value = order["securitiesAccount"]["positions"][0]["marketValue"] / 100
             
+            # Average price of initial buy
+            price = order["securitiesAccount"]["positions"][0]["averagePrice"]
+            
             # Order Symbol
             symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
+            
+            # Contract profit and loss percentage
+            price_change = market_value - price
+            profit_percentage = (price_change / price) * 100
             
             # Create Sell Order
             sell_order = self.create_order(round(market_value, 2), symbol, 'SELL')
@@ -206,15 +214,17 @@ class Client(QThread):
             self.schwab.post_orders(sell_order, accountNumber=hash).json()
         except json.decoder.JSONDecodeError:
             # Update database
-            # self.database.create_dataframe('order', order)
+            self.database.create_dataframe('order', order)
             
             # TODO: figure out how to keep track of the quantity and what alert
-            self.trade_update_signal.emit("SOLD", symbol, market_value, self.get_max_position_size, profit_loss, "Alert")
         except KeyError as e:
-            self.log_signal.emit(f"No positions found..{e}")
+            return
 
 
     def create_order(self, price, symbol, type, var='OPEN'):
+        """
+
+        """
         # Read the settings.txt file and apply the settings of quantity and risk % of account
         # Add a way to check balance here and check if you have used a certain % of account already.
         # Total balance, Risk Target Balance, Current Balance
@@ -237,9 +247,36 @@ class Client(QThread):
             }]
         }
         return order
+    
+
+    def position_type(self):
+        """
+
+        """
+        hash = self.schwab.account_numbers().json()[0].get('hashValue')
+        order = self.schwab.account_number(hash, "positions").json()
+        type = None
+        try:
+            # Symbol of open position
+            symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
+
+            type = symbol[12:13]
+
+            if type == 'C':
+                self.gmail.set_current_position('CALL')
+               
+            elif type == 'P':
+                self.gmail.set_current_position('PUT')
+            return self.gmail.get_current_position()  
+            
+        except KeyError as e:
+            return None
 
 
     def get_candle_history(self, ticker, periodType, period, frequencyType, frequency, startDate, endDate, fileName):
+        """
+
+        """
         # response = self.schwab.price_history('SPY', 'day', 10, 'minute', 1, datetime.strptime('2024-01-05', "%Y-%m-%d"), datetime.strptime('2024-08-12', "%Y-%m-%d"), True, True)
         response = self.schwab.price_history(ticker, periodType, period, frequencyType, frequency, datetime.strptime(startDate, "%Y-%m-%d"), datetime.strptime(endDate, "%Y-%m-%d"), True, True)
 
@@ -247,138 +284,138 @@ class Client(QThread):
             data = response.json()
             temp = data
             self.convert_epoch_to_datetime(temp["candles"])
-            self.log_signal.emit(json.dumps(temp, indent=4))
             df = self.database.create_dataframe('candles', data)
             self.database.store_data('candles', df, fileName)
-            self.log_signal.emit("Price History Request: Complete")
 
 
     def convert_epoch_to_datetime(self, candles):
+        """
+
+        """
         for candle in candles:
             epoch = candle["datetime"]
             dt = datetime.fromtimestamp(epoch / 1000.0)
             candle["datetime"] = dt.strftime('%Y-%m-%d %H:%M:%S')
 
 
-    def set_settings(self, settings):
-        self.settings = settings
-        self.log_signal.emit(f"Settings updated: {settings}")
-
-        if 'auto_start' in settings and settings['auto_start']:
-            self.set_schedule_auto_start(settings['auto_start_time'])
-
-        try:
-            if 'max_position_size' in settings:
-                max_position_size = int(settings['max_position_size'])
-                if max_position_size > 0:
-                    self.set_max_position_size(max_position_size)
-                else:
-                    raise ValueError("Max position size must be greater than 0")
-
-            if 'max_profit_percentage' in settings:
-                max_profit_percentage = float(settings['max_profit_percentage'])
-                if 0 < max_profit_percentage:
-                    self.set_max_profit_percentage(max_profit_percentage) 
-                else:
-                    raise ValueError("Max profit percentage must be greater than 0")
-
-            if 'max_loss_percentage' in settings:
-                max_loss_percentage = float(settings['max_loss_percentage'])
-                if 0 <= max_loss_percentage <= 100:
-                    self.set_max_loss_percentage(max_loss_percentage)
-                else:
-                    raise ValueError("Max loss percentage must be between 0 and 100")
-                
-            if 'max_contract_price' in settings:
-                max_contract_price = float(settings['max_contract_price'])
-                if 0 <= max_contract_price:
-                    self.set_max_contract_price(max_contract_price)
-                else:
-                    raise ValueError("Max contract price must be greater than 0")
-
-            if 'least_delta' in settings:
-                least_delta = float(settings['least_delta'])
-                if 0 <= least_delta <= 100:
-                    self.set_least_delta(least_delta)
-                else:
-                    raise ValueError("delta must be between 0 and 100")
-
-            if 'strategies' in settings:
-                self.set_strategies(settings['strategies'])
-                # Implement strategy selection logic here
-
-        except ValueError as e:
-            self.log_signal.emit(f"Error in settings: {str(e)}")
-        except Exception as e:
-            self.log_signal.emit(f"Unexpected error in settings: {str(e)}")
-
-
     def set_schedule_auto_start(self, time):
+        """
+
+        """
         # Implementation for scheduling auto start
         self.schedule_auto_start = time
-        self.log_signal.emit(f"Auto start scheduled for {time}")
 
 
     def set_max_position_size(self, size):
+        """
+
+        """
         # Implementation for setting max position size
         self.max_position_size = size
-        self.log_signal.emit(f"Max position size set to {size}")
 
 
     def set_max_profit_percentage(self, profit_percentage):
+        """
+
+        """
         # Implementation for setting max profit percentage
-        self.max_profit_percentage = profit_percentage / 100
-        self.log_signal.emit(f"Max profit percentage set to {profit_percentage}%")
+        self.max_profit_percentage = profit_percentage
 
 
     def set_max_loss_percentage(self, loss_percentage):
+        """
+
+        """
         # Implementation for setting max loss percentage
-        self.max_loss_percentage = (100 - loss_percentage) / 100
-        self.log_signal.emit(f"Max loss percentage set to -{loss_percentage}%")
+        self.max_loss_percentage = -abs(100 - loss_percentage)
 
 
     def set_max_contract_price(self, contract_price):
+        """
+        
+        """
         # Implementation for setting max loss percentage
         self.max_contract_price = contract_price
-        self.log_signal.emit(f"Max contract price set to {contract_price}")
 
 
     def set_least_delta(self, delta):
+        """
+        
+        """
         # Implementation for setting max loss percentage
         self.least_delta = delta
-        self.log_signal.emit(f"Least delta is set to {delta}")
 
 
     def set_strategies(self, strategies):
+        """
+        
+        """
         # Implementation for setting strategies
         self.strategies = strategies
-        self.log_signal.emit(f"Strategies set to {strategies}")
 
 
     def get_schedule_auto_start(self):
+        """
+        
+        """
         return self.schedule_auto_start
     
 
     def get_max_position_size(self):
+        """
+        
+        """
         return self.max_position_size
     
 
     def get_max_profit_percentage(self):
+        """
+        
+        """
         return self.max_profit_percentage
     
 
     def get_max_loss_percentage(self):
+        """
+        
+        """
         return self.max_loss_percentage
     
 
     def get_max_contract_price(self):
+        """
+        
+        """
         return self.max_contract_price
     
 
     def get_least_delta(self):
+        """
+        
+        """
         return self.least_delta
+
+    
+    def set_settings(self):
+        df = self.gmail.read_sheet()
+        self.DAY = 0
+
+        # This is something I can check to see If I had  Green or red day
+        self.adjusted_balance = int(df.at[self.DAY,'Adj$Balance'][1:])
+
+        self.set_max_position_size(int(df.at[self.DAY,'Pos#Open']))
+        self.max_profit_percentage = float(df.at[self.DAY,'Pos%Tgt'][:5])
+        self.max_loss_percentage = -abs(float(df.at[self.DAY,'Tot%Risk'][:5]))
+        self.max_contract_price = int(df.at[self.DAY,'Pos$Size'][1:])
+        self.least_delta = 0.20
     
 
-    def get_strategies(self):
-        return self.strategies
-    
+    def save_settings(self):
+        # Request the accounts balance and send it to sheet
+        sheet_name = 'perf'
+        column = 'P'
+        row = 20 + self.DAY
+        
+        range = f'{sheet_name}!{column}{row}'
+
+        self.gmail.update_sheet(range, 317.79)
