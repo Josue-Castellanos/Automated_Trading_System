@@ -544,7 +544,7 @@ class Client:
     def save_settings(self):
         """
         
-        1"""
+        """
         # Request the accounts balance and send it to sheet
         sheet_name = 'perf'
         column = 'P'

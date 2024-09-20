@@ -5,7 +5,7 @@ import base64
 import requests
 import threading
 import webbrowser
-from .stream import Stream
+from .streamV2 import Stream
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
