@@ -8,8 +8,25 @@ import threading
 from time import sleep
 from datetime import datetime, time
 
+
 class Stream:
+    """ 
+    Manages streaming operations for Schwab API data.
+    
+    This class handles the connection to Schwab's streaming API, subscribes to 
+    various data streams, and processes incoming messages.
+    
+    Args:
+        schwab: An instance of the Schwab API client.
+    """
+
     def __init__(self, schwab):
+        """ 
+        Initialize the Stream object.
+        
+        Args:
+            schwab: An instance of the Schwab API client.
+        """
         self.streamer_info = None
         self.request_id = 1
         self.schwab = schwab
@@ -24,8 +41,10 @@ class Stream:
 
 
     def stop_atexit(self):
-        """
-        Stop the stream gracefully if it's still active when the program exits.
+        """ 
+        Stop the stream gracefully when the program exits.
+        
+        This method is registered with atexit to ensure proper cleanup.
         """
         if self.active:
             print("Stopping stream on exit")
@@ -33,8 +52,11 @@ class Stream:
 
 
     def get_user_preferences(self):
-        """
+        """ 
+        Fetch user preferences from the Schwab API.
         
+        Returns:
+            dict or None: User preferences if successful, None otherwise.
         """
         headers = {
             "Authorization": f"Bearer {self.schwab.accessToken}"
@@ -47,8 +69,11 @@ class Stream:
 
 
     async def on_message(self):
-        """
+        """ 
+        Process incoming messages from the websocket.
         
+        This method continuously listens for messages, saves them to a file,
+        and prints them to the console.
         """
         async for message in self.websocket:
             data = json.loads(message)
@@ -62,8 +87,11 @@ class Stream:
 
 
     async def subscribe_services(self):
-        """
+        """ 
+        Subscribe to various chart data services for specified symbols.
         
+        This method sends subscription requests for different time intervals
+        for each symbol in self.symbols.
         """
         intervals = {
             "1MIN": "2",
@@ -97,10 +125,12 @@ class Stream:
                 self.request_id += 1
 
 
-
     async def _start_streamer(self, *args, **kwargs):
-        """
+        """ 
+        Start the streaming process.
         
+        This method establishes a websocket connection, logs in to the streamer,
+        subscribes to services, and handles incoming messages.
         """
         response = self.schwab.preferences()
         if response.ok:
@@ -148,8 +178,11 @@ class Stream:
 
 
     def start(self, *args, **kwargs):
-        """
+        """ 
+        Start the streaming process in a separate thread.
         
+        This method creates a new thread to run the _start_streamer method
+        if the stream is not already active.
         """
         if not self.active:
             def _start_async():
@@ -163,8 +196,13 @@ class Stream:
 
 
     def _record_request(self, request):
-        """
+        """ 
+        Record subscription requests.
         
+        This method keeps track of the subscribed services, keys, and fields.
+        
+        Args:
+            request (dict): The subscription request to record.
         """
         def str_to_list(st):
             if type(st) is str: 
@@ -185,8 +223,11 @@ class Stream:
 
 
     def stop(self, clear_subscriptions=True):
-        """
+        """ 
+        Stop the streaming process.
         
+        Args:
+            clear_subscriptions (bool): Whether to clear the subscriptions.
         """
         if clear_subscriptions:
             self.subscriptions = {}
@@ -195,8 +236,11 @@ class Stream:
 
 
     def send(self, requests):
-        """
+        """ 
+        Send requests to the websocket.
         
+        Args:
+            requests (list or dict): The request(s) to send.
         """
         async def _send(to_send):
             await self.websocket.send(to_send)
