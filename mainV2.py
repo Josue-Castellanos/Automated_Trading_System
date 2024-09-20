@@ -1,7 +1,7 @@
-from bot.clientV2 import Client
+from system.clientV2 import Client
 from datetime import datetime, time
 import time as t
-import threading
+
 
 class MarketWatcher:
     def __init__(self):
@@ -14,7 +14,7 @@ class MarketWatcher:
         """
         now = datetime.now()
         market_open = time(9, 30)  # e.g., 9:30 AM
-        market_close = time(13, 00)  # e.g., 4:00 PM
+        market_close = time(12, 59)  # e.g., 4:00 PM
         return market_open <= now.time() <= market_close
 
 
@@ -25,21 +25,23 @@ class MarketWatcher:
         if self.is_market_open():
             if self.client is None:
                 self.client = Client()  # Instantiate the Gmail client here
-                print("Client is on!")
+                print("Market is open, Client is on!")
             else:
+                print("Market is open, Client is running!")
                 self.client.gmail.set_checker(True)
                 pass
         else:
-            # TODO:// We can either stop the scrapping process which
-            # prevents purchases of contracts
             if self.client is not None:
-                self.client.gmail.set_checker(False)    # Stop Scrapping
-                print("Scrapping is off")
+                print("Market is closed, Client is down!")
+                self.client.gmail.set_checker(None)    # Stop Scrapping
+                self.client.sell_position()
+                self.client.save_settings()
                 # del self.client  # Delete the client
-                # self.client = None
+                self.client = None
             else:
+                print("Market is closed, and client is down!")
                 pass
-
+           
 
     def start_watching(self):
         """
@@ -47,7 +49,7 @@ class MarketWatcher:
         """
         while True:
             self.manage_client()
-            t.sleep(1)  # Check every 10 seconds
+            t.sleep(10)  # Check every 10 seconds
 
 
 def main():

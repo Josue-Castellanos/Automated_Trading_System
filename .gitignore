@@ -239,3 +239,5 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/python,osx,windows,jsonnet,dotenv
 gmail/app_info/token.json
 gmail/app_info/token.json
+steps.txt
+test.py

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-def get_dates():
+def dates():
     today = datetime.now()
     day_of_week = today.weekday()
 
@@ -18,3 +18,4 @@ def get_dates():
     else:
         tomorrow = today + timedelta(days=1)
         return today.strftime("%Y-%m-%d"), tomorrow.strftime("%Y-%m-%d")
+    

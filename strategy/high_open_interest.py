@@ -1,6 +1,6 @@
 import yfinance as yf
 import matplotlib.pyplot as plt
-from setting.dates import get_dates
+from setting.dates import dates
 from datetime import datetime
 
 def retrieveData():
@@ -12,7 +12,7 @@ def retrieveData():
 
 # Retrieve options data for a given symbol
 def _GetOptionsData(symbol):
-    today_exp, tomorrow_exp = get_dates()
+    today_exp, tomorrow_exp = dates()
 
     current_time = datetime.now()
     cutoff_time = current_time.replace(hour=13, minute=15, second=0, microsecond=0)
