@@ -15,36 +15,36 @@
 
 ## About the Project
 
-The **Automated Trading System** is an unofficial way to access the **Charles Schwabs API**. In addition, its a scalable system designed to execute trades autonomously based on alert triggers from Thinkorswim Trading Platform. It aims to provide transaction processing for various financial instruments, including stocks, bonds, and options (currently stocks and bonds are a work in progress). 
+The **Automated Trading System** is an unofficial way to access the **Charles Schwabs API**. In addition, its a scalable system designed to execute trades autonomously based on alert triggers from Thinkorswim Trading Platform. It aims to provide transaction processing for various financial instruments, including stocks and options. 
+
 
 ### Key Objectives:
 
 - Authenticate and access the Google and Charles Schwab API.
 - Auto "access token" updates and "refresh token" updates.
-- Functions for almost all api functions (in schwab/apiV2.py).
+- Functions for almost all API functions (in src/app/schwab.py).
 - Stream real-time data (Work in progress).
-- Automates fast and secure trade execution.
+- Continuosly scrapes Gmail account for buy/sell alerts sent from Thinkorswim.
+- Automates fast and secure trade execution based on alerts.
 - Follows a performance tracker on Google Sheet.
 - Requests real-time data such as price history, option chain, portfolio details, etc.
-- Continuosly scrapes Gmail account for alerts sent from Thinkorswim.
 
 ## Features
 
 - **Real-time Market Data:** Fetch live market prices and option chains.
 - **Portfolio Management:** Track user portfolios.
-- **Transaction Processing:** Efficiently handle buy/sell option orders.
+- **Transaction Processing:** Handle buy/sell option orders.
 - **Analytics Dashboard:** Visualize trading performance (Work in progress).
 - **Secure User Authentication:** User login and secure session handling.
 
 ## Tech Stack
 
-- **Backend:** [FastAPI](https://fastapi.tiangolo.com/)
+- **Backend:** [Django Ninja](https://django-ninja.dev/)
 - **Database:** [MySQL](https://www.mysql.com/)
-- **Frontend:** [React.js](https://reactjs.org/)
+- **Frontend:** [Django](https://www.djangoproject.com/)
 - **API Integration:** [Charles Schwab API](https://developer.schwab.com/), [Google Sheet](https://cloud.google.com/), [Google Gmail](https://cloud.google.com/)
-- **Authentication:** [OAuth 2.0](https://oauth.net/2/)
 - **Testing:** [Postman](https://www.postman.com/)
-- **Deployment:** [Heroku](https://www.heroku.com/)
+- **Deployment:** [AWS](https://aws.amazon.com/), [Heroku](https://www.heroku.com/)
 
 ## Installation
 
