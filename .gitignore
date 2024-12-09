@@ -2,18 +2,16 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,osx,windows,jsonnet,dotenv
 # Edited by Josue Castellanos
 
+
+### yaml ###
+*.yaml
+
 ### dotenv ###
 *.env
 
 ### python notebook ###
 *.ipynb
 
-### webspages/api ###
-src/Automated_Trading_System
-src/pages
-src/templates
-src/manage.py
-src/db.sqlite3
 
 ### Jsonnet ###
 *.json
