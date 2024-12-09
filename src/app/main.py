@@ -26,7 +26,6 @@ class MarketWatcher:
         market_close = time(10, 00)  # e.g., 4:00 PM
         return market_open <= now.time() <= market_close
 
-
     def manage_client(self):
         """
         Manage the client instantiation based on market hours
