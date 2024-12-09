@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %} Portfolio Overview {% endblock title %}
+
+{% block style %}
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(86deg, #282c34, #3b5998);
+            color: #fff;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .journal_container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .data-table {
+            width: 100%;
+            margin-top: 1rem;
+            border-collapse: collapse;
+        }
+
+        .data-table th, .data-table td {
+            padding: 15px;
+            text-align: center;
+            font-size: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .data-table th {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #f39c12;
+            font-weight: bold;
+        }
+
+        .data-table tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .data-table td {
+            color: #fff;
+        }
+
+        .highlight-positive {
+            font-weight: bold;
+            color: #00c851 !important; /* Green for positive */
+        }
+
+        .highlight-negative {
+            font-weight: bold;
+            color: #ff4444 !important; /* Red for negative */
+        }
+
+        .highlight-zero {
+            font-weight: bold;
+            color: #4285f4 !important; /* Blue for zero */
+        }
+    </style>
+{% endblock style %}
+
+{% block head %}
+        <h1>Automated Trading System</h1>
+{% endblock head %}
+
+{% block content %}
+    <div class="container">
+        <h1><i class="fas fa-briefcase"></i> Portfolio Overview</h1>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Total Cash</td>
+                    <td class="highlight">${{ portfolio.totalCash|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Cash Available for Trading</td>
+                    <td>${{ portfolio.cashAvailableForTrading|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Cash Available for Withdrawal</td>
+                    <td>${{ portfolio.cashAvailableForWithdrawal|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Total Gain/Loss</td>
+                    <td class="{% if portfolio.totalGainLoss > 0 %}highlight-positive{% elif portfolio.totalGainLoss < 0 %}highlight-negative{% else %}highlight-zero{% endif %}">
+                        ${{ portfolio.totalGainLoss|floatformat:2 }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="journal_container">
+        <h1><i class="fas fa-briefcase"></i> Trading Journal </h1>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Ticker</th>
+                    <th>Strike</th>
+                    <th>Type</th>
+                    <th>Exp</th>
+                    <th>Quantity</th>
+                    <th>Order</th>
+                    <th>Fill</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in positions %}
+                <tr>
+                    <td>{{ record.date }}</td>
+                    <td>{{ record.time }}</td>
+                    <td>{{ record.ticker }}</td>
+                    <td>{{ record.strike }}</td>
+                    <td>{{ record.type }}</td>
+                    <td>{{ record.date }}</td>
+                    <td>{{ record.quantity }}</td>
+                    <td class="{% if record.order == 'BUY' %}highlight-positive{% else %}highlight-negative{% endif %}">
+                        {{ record.order }}</td>
+                    <td>{{ record.price }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock content %}
