@@ -8,7 +8,7 @@ GIT_REPO_URL="https://github.com/Josue-Castellanos/Automated_Trading_System.git"
 #GIT_REPO_URL="https://<your_username>:<your_PAT>@github.com/Josue-Castellanos/Automated_Trading_System.git"
 
 # Replace {YOUR_PROJECT_MAIN_DIR_NAME} with your actual project directory name
-PROJECT_MAIN_DIR_NAME="Automated_Trading_System/src"
+PROJECT_MAIN_DIR_NAME="Automated_Trading_System"
 
 # Clone repository
 git clone "$GIT_REPO_URL" "/home/ubuntu/$PROJECT_MAIN_DIR_NAME"
