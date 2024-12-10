@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from Automated_Trading_System.services import app_service
+from cfehome.services import app_service
 
 
 # Create your views here.

@@ -3,8 +3,8 @@
 # Replace {YOUR_PROJECT_MAIN_DIR_NAME} with your actual project directory name
 PROJECT_MAIN_DIR_NAME="Automated_Trading_System"
 
-# Replace {FOLDER_NAME_WHERE_SETTINGS_FILE_EXISTS} with the folder name where your nginx configuration file exists
-FOLDER_NAME_WHERE_SETTINGS_FILE_EXISTS="src/Automated_Trading_System"
+# Replace {FOLDER_NAME_WHERE_SETTINGS_FILE_EXISTS} with the folder name where your settings file exists
+FOLDER_NAME_WHERE_SETTINGS_FILE_EXISTS="cfehome"
 
 # Reload systemd daemon
 sudo systemctl daemon-reload

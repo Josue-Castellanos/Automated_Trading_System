@@ -59,7 +59,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
-ROOT_URLCONF = 'Automated_Trading_System.urls'
+ROOT_URLCONF = 'cfehome.urls'
 
 TEMPLATES = [
     {
@@ -77,7 +77,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'Automated_Trading_System.wsgi.application'
+WSGI_APPLICATION = 'cfehome.wsgi.application'
 
 
 # Database
