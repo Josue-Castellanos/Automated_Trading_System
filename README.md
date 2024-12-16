@@ -61,3 +61,28 @@ The **Automated Trading System** is an unofficial way to access the **Charles Sc
    ```bash
    git clone https://github.com/Josue-Castellanos/Automated_Trading_System.git
    cd Automated_Trading_System
+2. Setup .env file in app directory
+   ```
+   ACCESS_TOKEN_DATETIME = None
+   REFRESH_TOKEN_DATETIME = None
+   JSON_DICT = None
+   ACCESS_TOKEN = None
+   REFRESH_TOKEN = None
+   ID_TOKEN = None
+   ACCOUNT_NUMBER = Your Charles Schwab Account Number here
+   APP_KEY = Your Charles Schwab App Key here
+   SECRET_KEY = Your Charles Schwab App Secret Key here
+   ENV_PATH = Your Enviroment Variables Path here
+   CALLBACK_URL = Your App Callback URL here (if local then https://127.0.0.1
+   ACCOUNT_ENDPOINT = https://api.schwabapi.com/trader/v1
+   MARKET_ENDPOINT = https://api.schwabapi.com/marketdata/v1
+   POST_ENDPOINT = https://api.schwabapi.com/v1/oauth/token
+   STREAM_ENDPOINT = https://api.schwab.com/v1
+   
+   CLIENT_ID = Your Google Service Client ID here
+   CLIENT_SECRET = Your Google Service Client Secret here
+   SHEET_ID = [Optional] Your Google Sheet ID here
+   PERFORMANCE_PATH = Your Google Service Performance JSON Path here
+   CREDENTIALS_PATH = Your Google Service Credentials JSON Path here
+   TOKEN_PATH = Your Google Service Token JSON Path here
+
