@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-*pqf!d%og^-)obtse(xjh6yh1#lvku2tlp^3j^%e^owuxvl(h0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -43,9 +43,7 @@ INSTALLED_APPS = [
     # Thrid party apps
     'whitenoise.runserver_nostatic',
     'ninja_extra',
-    'ninja_jwt',
-    # Internal apps
-    'pages',
+    'ninja_jwt',   
 ]
 
 MIDDLEWARE = [
@@ -64,7 +62,7 @@ ROOT_URLCONF = 'cfehome.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [os.path.join(BASE_DIR, 'cfehome/templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -141,7 +139,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-MEDIA_URLS ='/media/'
+MEDIA_URL ='/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 

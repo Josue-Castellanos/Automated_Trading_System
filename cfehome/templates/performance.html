@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %} Performance Tracker {% endblock title %}
+
+{% block style %}
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(89deg, #282c34, #3b5998);
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1250px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .data-table {
+            width: 100%;
+            margin-top: 1rem;
+            border-collapse: collapse;
+        }
+
+        .data-table th, .data-table td {
+            padding: 15px;
+            text-align: center;
+            font-size: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .data-table th {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #f39c12;
+            font-weight: bold;
+        }
+
+        .data-table tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .data-table td {
+            color: #fff;
+        }
+
+        .highlight-positive {
+            font-weight: bold;
+            color: #00c851; /* Green for positive */
+        }
+
+        .highlight-negative {
+            font-weight: bold;
+            color: #ff4444; /* Red for negative */
+        }
+    </style>
+{% endblock style %}
+
+{% block head %}
+        <h1>Automated Trading System</h1>
+{% endblock head %}
+
+{% block content %}
+    <div class="container">
+        <h1><i class="fas fa-briefcase"></i> Trading Options Tracker </h1>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Date</th>
+                    <th>Tgt$</th>
+                    <th>Tgt$Balance</th>
+                    <th>Pos$</th>
+                    <th>Pos#</th>
+                    <th>Pos%</th>
+                    <th>Act$-Adj$</th>
+                    <th>Act$Gain</th>
+                    <th>Act%Gain</th>
+                    <th>Act$Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in performance %}
+                <tr>
+                    <td>{{ record.day }}</td>
+                    <td>{{ record.date }}</td>
+                    <td>{{ record.adj__gain }}</td>
+                    <td>{{ record.adj__balance }}</td>
+                    <td>{{ record.pos__size }}</td>
+                    <td>{{ record.pos_open }}</td>
+                    <td>{{ record.pos_tgt }}</td>
+                    <td>{{ record.act__adj__ }}</td>
+                    <td>{{ record.act__gain }}</td>
+                    <td>{{ record.act_gain }}</td>
+                    <td>{{ record.act__balance }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock content %}
