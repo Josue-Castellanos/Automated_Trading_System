@@ -39,9 +39,9 @@ The **Automated Trading System** is an unofficial way to access the **Charles Sc
 
 ## Tech Stack
 
-- **Backend:** [Django Ninja](https://django-ninja.dev/)
+- **Backend:** [Django](https://www.djangoproject.com/)
 - **Database:** [MySQL](https://www.mysql.com/)
-- **Frontend:** [Django](https://www.djangoproject.com/)
+- **Frontend:** [HTML](https://html.com/), CSS
 - **API Integration:** [Charles Schwab API](https://developer.schwab.com/), [Google Sheet](https://cloud.google.com/), [Google Gmail](https://cloud.google.com/)
 - **Testing:** [Postman](https://www.postman.com/)
 - **Deployment:** [AWS](https://aws.amazon.com/), [Heroku](https://www.heroku.com/)
