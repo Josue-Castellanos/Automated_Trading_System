@@ -23,7 +23,7 @@ class MarketWatcher:
         """
         now = datetime.now()
         market_open = time(9, 30)  # e.g., 9:30 AM
-        market_close = time(10, 00)  # e.g., 4:00 PM
+        market_close = time(15, 58)  # e.g., 3:58 PM
         return market_open <= now.time() <= market_close
 
     def manage_client(self):
@@ -34,8 +34,10 @@ class MarketWatcher:
             if self.client is None:
                 print("Market is open, start Client!")
                 self.start_client()
+            elif self.client is not None and not self.client.is_enough_funds():
+                self.stop_client()
             else:
-                print("Market is open, Client is running!")
+                print("Market is open, Client is running, and enough funds to trade!")
                 pass
         else:
             if self.client is not None:
@@ -50,12 +52,11 @@ class MarketWatcher:
         self.client.gmail.set_checker(None)  
         self.client.sell_position()
         self.client.save_settings()
-        self.client = None
+        del self.client
 
 
     def start_client(self):
         self.client = Client(self.schwab, self.sheet, settings)
-        self.client.gmail.set_checker(True)
     
     
     def start_watching(self):

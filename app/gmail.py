@@ -65,7 +65,10 @@ class Gmail:
             
             signal_type = message['snippet'][36:42].upper()
             
-            if signal_type in ('CALL5-', 'CALL15', 'CALL30', 'CALL1H', 'CALL2H', 'CALL4H', 'C5----', 'C15---', 'C30---', 'C1H---', 'C2H---', 'C4H---'):
+            if self.is_smart_money():
+                pass
+
+            elif signal_type in ('CALL5-', 'CALL15', 'CALL30', 'CALL1H', 'CALL2H', 'CALL4H', 'C5----', 'C15---', 'C30---', 'C1H---', 'C2H---', 'C4H---'):
                 if self.current_position != 'CALL' and not self.CALLEVENT.is_set():
                     self.CALLEVENT.set()
                     self.PUTEVENT.clear()
@@ -74,6 +77,16 @@ class Gmail:
                 if self.current_position != 'PUT' and not self.PUTEVENT.is_set():
                     self.PUTEVENT.set()
                     self.CALLEVENT.clear()
+
+
+    def is_smart_money(self):
+        """
+        Check if the current time is within smart money hours
+            - first 30 minutes from market open
+        """
+        now = datetime.now()
+        market_smart_money = time(10, 00)  # e.g., 10:00 AM
+        return now.time() < market_smart_money  
 
 
     def check_email_automatic(self):

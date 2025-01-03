@@ -11,6 +11,7 @@ class AppService:
         self._schwab = Schwab(settings)
         self._sheet = Sheet(settings)
         self.today = datetime.now()
+        self.tomorrow = self.today + timedelta(days=1)
 
 
     def get_account_data(self):
@@ -67,7 +68,7 @@ class AppService:
     
 
     def get_account_orders(self):
-        all_account_orders = self._schwab.account_orders_all(fromEnteredTime=self.order_date(), toEnteredTime=self.today.strftime("%Y-%m-%d"), maxResults=50, status='FILLED')
+        all_account_orders = self._schwab.all_orders(fromEnteredTime=self.order_date(), toEnteredTime=self.tomorrow.strftime("%Y-%m-%d"), maxResults=50, status='FILLED')
 
         order_dict = []
 

@@ -27,16 +27,16 @@ class Client:
         self.gmail = Gmail(settings)
         self.schwab = schwab
         self.sheet = sheet
-        self.max_position_size = None
-        self.max_profit_percentage = None
-        self.max_loss_percentage = None
-        self.max_contract_price = None
-        self.least_delta = None
+        self.today, self.tomorrow = dates()
+        self.now = datetime.now().strftime("%-m/%-d/%Y")        
+        self.loss_percentage = -50.00                           # ADJUST: (-50.00%) change if you need to adjust risk
+        self.position_size = None
+        self.profit_percentage = None
+        self.contract_price = None
         self.adjusted_balance = None
         self.day = None
         self.balance = None
-        self.today, self.tomorrow = dates()
-        self.now = datetime.now().strftime("%-m/%-d/%Y")
+        self.set_settings()
 
         threading.Thread(target=self.handleCallEvent, daemon=True).start()
         threading.Thread(target=self.handlePutEvent, daemon=True).start()  
@@ -70,6 +70,7 @@ class Client:
                 if put_contract is not None:
                     self.buy_position(put_contract, 'PUT')
                     self.gmail.set_current_position('PUT')
+                    self.calculate_remaining_balance()
                     self.check_position('PUT')
                     
                 self.gmail.reset_position()
@@ -91,13 +92,14 @@ class Client:
             self.gmail.get_call_event().wait()
             open_position = self.gmail.get_current_position()
 
-            if open_position != 'CALL':
+            if open_position != 'CALL' and self.is_enough_funds():
                 self.sell_position()
                 call_contract = self.best_contract('CALL')
 
                 if call_contract is not None:
                     self.buy_position(call_contract, 'CALL')
                     self.gmail.set_current_position('CALL')
+                    self.calculate_remaining_balance()
                     self.check_position('CALL')
                     
                 self.gmail.reset_position()
@@ -121,12 +123,7 @@ class Client:
         options = self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today)
         strike_price_df = self.create_dataframe(options)
 
-        if type == 'PUT':
-            filtered_delta_result = strike_price_df.loc[strike_price_df['Delta'] <= -abs(self.get_least_delta())]
-        elif type == 'CALL':
-            filtered_delta_result = strike_price_df.loc[strike_price_df['Delta'] >= self.get_least_delta()]
-
-        filtered_ask_result = filtered_delta_result.loc[filtered_delta_result['Ask'] <= self.get_max_contract_price()]
+        filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
         if not filtered_ask_result.empty:
             contract = filtered_ask_result.iloc[0]
@@ -178,13 +175,18 @@ class Client:
             open_position = self.schwab.account_number(hash, "positions")
             try:
                 symbol = open_position["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
+                profit_loss_percentage = open_position["securitiesAccount"]["positions"][0]["currentDayProfitLossPercentage"]
+                # This logic here has to be chamged to the market value diff or somehting else
+                # *****************************************************************************
                 price = open_position["securitiesAccount"]["positions"][0]["averagePrice"]
                 market_value = open_position["securitiesAccount"]["positions"][0]["marketValue"] / 100
-                
                 price_change = market_value - price
                 profit_percentage = (price_change / price) * 100
+                # *****************************************************************************
+
+
                 
-                if profit_percentage >= self.get_max_profit_percentage() or profit_percentage <= self.get_max_loss_percentage():
+                if profit_loss_percentage >= self.profit_percentage or profit_loss_percentage <= self.loss_percentage:
                     self.sell_position(type)
                     inPosition = False
                     break   
@@ -209,14 +211,8 @@ class Client:
 
         try:
             market_value = order["securitiesAccount"]["positions"][0]["marketValue"] / 100
-            price = order["securitiesAccount"]["positions"][0]["averagePrice"]
-            symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
-            
-            price_change = market_value - price
-            profit_percentage = (price_change / price) * 100
-            
+            symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"] 
             sell_order = self.create_order(round(market_value, 2), symbol, 'SELL')
-            
             self.schwab.post_orders(sell_order, accountNumber=hash).json()
         except json.decoder.JSONDecodeError:
             pass
@@ -251,7 +247,7 @@ class Client:
             'orderStrategyType': 'SINGLE',
             'orderLegCollection': [{
                 'instruction': f'{type}_TO_{var}',
-                'quantity': self.get_max_position_size(),
+                'quantity': self.position_size,
                 'instrument': {
                     'symbol': symbol,
                     'assetType': 'OPTION'
@@ -261,7 +257,7 @@ class Client:
         return order
 
 
-    def create_dataframe(options):
+    def create_dataframe(self, options):
         data = []
         exp_date_map = options.get('callExpDateMap') or options.get('putExpDateMap')
         for exp_date, strikes in exp_date_map.items():
@@ -340,6 +336,13 @@ class Client:
             candle["datetime"] = dt.strftime('%Y-%m-%d %H:%M:%S')
 
 
+    def is_enough_funds(self):
+        return self.balance >= self.contract_price
+    
+
+    def calculate_remaining_balance(self):
+        self.balance = self.balance - (self.contract_price * self.position_size)
+
 # *****************************************************************************************************************
 # ************************************************ SETTERS ********************************************************
 # *****************************************************************************************************************
@@ -370,6 +373,9 @@ class Client:
 
 
     def set_daily_goal(self, daily_goal):
+        """
+        
+        """
         self.daily_goal = daily_goal
 
 
@@ -386,7 +392,7 @@ class Client:
         self.adjusted_balance = adjusted_balance
 
 
-    def set_max_position_size(self, size):
+    def set_position_size(self, size):
         """
         Set the maximum position size.
 
@@ -396,10 +402,10 @@ class Client:
         Returns:
             None
         """
-        self.max_position_size = size
+        self.position_size = size
 
 
-    def set_max_profit_percentage(self, profit_percentage):
+    def set_profit_percentage(self, profit_percentage):
         """
         Set the maximum profit percentage.
 
@@ -409,23 +415,10 @@ class Client:
         Returns:
             None
         """
-        self.max_profit_percentage = profit_percentage
+        self.profit_percentage = profit_percentage
 
 
-    def set_max_loss_percentage(self, loss_percentage):
-        """
-        Set the maximum loss percentage.
-
-        Args:
-            loss_percentage (float): The maximum loss percentage to set.
-
-        Returns:
-            None
-        """
-        self.max_loss_percentage = -abs(100.0 - loss_percentage)
-
-
-    def set_max_contract_price(self, contract_price):
+    def set_contract_price(self, contract_price):
         """
         Set the maximum contract price.
 
@@ -435,107 +428,7 @@ class Client:
         Returns:
             None
         """
-        self.max_contract_price = contract_price
-
-
-    def set_least_delta(self, delta):
-        """
-        Set the least delta value for option contracts.
-
-        Args:
-            delta (float): The least delta value to set.
-
-        Returns:
-            None
-        """
-        self.least_delta = delta
-
-
-# *****************************************************************************************************************
-# ************************************************ GETTERS ********************************************************
-# *****************************************************************************************************************
-    def get_max_position_size(self):
-        """
-        Get the maximum position size.
-
-        Returns:
-            int: The maximum position size.
-        """
-        return self.max_position_size
-
-
-    def get_max_profit_percentage(self):
-        """
-        Get the maximum profit percentage.
-
-        Returns:
-            float: The maximum profit percentage.
-        """
-        return self.max_profit_percentage
-
-
-    def get_max_loss_percentage(self):
-        """
-        Get the maximum loss percentage.
-
-        Returns:
-            float: The maximum loss percentage.
-        """
-        return self.max_loss_percentage
-
-
-    def get_max_contract_price(self):
-        """
-        Get the maximum contract price.
-
-        Returns:
-            float: The maximum contract price.
-        """
-        return self.max_contract_price
-
-
-    def get_least_delta(self):
-        """
-        Get the least delta value for option contracts.
-
-        Returns:
-            float: The least delta value.
-        """
-        return self.least_delta
-
-
-    def get_adjusted_balance(self):
-        """
-        Get the adjusted account balance.
-
-        Returns:
-            float: The adjusted account balance.
-        """
-        return self.adjusted_balance
-
-
-    def get_day(self):
-        """
-        Get the current day on the Google Sheet
-
-        Returns:
-            int: The current day on the Google Sheet
-        """
-        return self.day
-    
-
-    def get_balance(self):
-        """
-        Get the account balance
-
-        Returns:
-            float: The current account balance
-        """
-        return self.balance
-    
-
-    def get_daily_goal(self):
-        return self.get_daily_goal
+        self.contract_price = contract_price
     
 
 # ******************************************************************************************************************
@@ -553,11 +446,9 @@ class Client:
         self.set_day(int(row.iloc[0]['Day']))
         self.set_daily_goal(int(row.iloc[0]['Adj$Gain'][1:]))
         self.set_adjusted_balance(int(row.iloc[0]['Adj$Balance'][1:]))
-        self.set_max_position_size(int(row.iloc[0]['Pos#Open']))
-        self.set_max_profit_percentage(float(row.iloc[0]['Pos%Tgt'][:5]))
-        self.set_max_loss_percentage(float(row.iloc[0]['Tot%Risk'][:5]))
-        self.set_max_contract_price(int(row.iloc[0]['Pos$Size'][1:]))
-        self.set_least_delta(0.20)
+        self.set_position_size(int(row.iloc[0]['Pos#Open']))
+        self.set_profit_percentage(float(row.iloc[0]['Pos%Tgt'][:-1]))
+        self.set_contract_price(int(row.iloc[0]['Pos$Size'][1:]))
         self.set_balance(self.total_cash())
     
 
@@ -568,7 +459,7 @@ class Client:
         # Request the accounts balance and send it to sheet
         sheet_name = 'perf'
         column = 'P'
-        row = 10 + self.get_day()
+        row = 10 + self.day()
         
         range = f'{sheet_name}!{column}{row}'
         

@@ -113,7 +113,7 @@ class Schwab():
             return {"error": f"Failed to retrieve account number: {str(e)}"}
 
 
-    def get_orders(self, maxResults, fromEnteredTime, toEnteredTime, accountNumber=None, status=None):
+    def account_orders(self, maxResults, fromEnteredTime, toEnteredTime, accountNumber=None, status=None):
         """
         Retrieve orders for a specific account.
 
@@ -123,6 +123,28 @@ class Schwab():
             toEnteredTime (datetime | str): End of the time range.
             accountNumber (str, optional): Account hash from account_linked().
             status (str, optional): Order status filter.
+                Available values : 
+                    AWAITING_PARENT_ORDER, 
+                    AWAITING_CONDITION, 
+                    AWAITING_STOP_CONDITION, 
+                    AWAITING_MANUAL_REVIEW, 
+                    ACCEPTED, 
+                    AWAITING_UR_OUT, 
+                    PENDING_ACTIVATION, 
+                    QUEUED, 
+                    WORKING, 
+                    REJECTED, 
+                    PENDING_CANCEL, 
+                    CANCELED, 
+                    PENDING_REPLACE, 
+                    REPLACED, 
+                    FILLED, 
+                    EXPIRED,
+                    NEW, 
+                    AWAITING_RELEASE_TIME, 
+                    PENDING_ACKNOWLEDGEMENT, 
+                    PENDING_RECALL, 
+                    UNKNOWN
 
         Returns:
             requests.Response: The API response containing orders for the specified account.
@@ -268,7 +290,7 @@ class Schwab():
                                      "Content-Type": "application/json"}, json=order)
 
 
-    def account_orders_all(self, fromEnteredTime, toEnteredTime, maxResults=None, status=None):
+    def all_orders(self, fromEnteredTime, toEnteredTime, maxResults=None, status=None):
         """
         Retrieve all orders for all accounts within a specified time range.
 
@@ -276,10 +298,33 @@ class Schwab():
             fromEnteredTime (datetime | str): Start of the time range.
             toEnteredTime (datetime | str): End of the time range.
             maxResults (int, optional): Maximum number of results to return (default is 3000).
-            status (str, optional): Filter orders by status.
+            status (str, optional): 
+                Available values : 
+                    AWAITING_PARENT_ORDER, 
+                    AWAITING_CONDITION, 
+                    AWAITING_STOP_CONDITION, 
+                    AWAITING_MANUAL_REVIEW, 
+                    ACCEPTED, 
+                    AWAITING_UR_OUT, 
+                    PENDING_ACTIVATION, 
+                    QUEUED, 
+                    WORKING, 
+                    REJECTED, 
+                    PENDING_CANCEL, 
+                    CANCELED, 
+                    PENDING_REPLACE, 
+                    REPLACED, 
+                    FILLED, 
+                    EXPIRED,
+                    NEW, AWAITING_RELEASE_TIME, 
+                    PENDING_ACKNOWLEDGEMENT, 
+                    PENDING_RECALL, 
+                    UNKNOWN
 
         Returns:
             requests.Response: The API response containing all orders across all accounts.
+        Note:
+            Maximum date range is 60 days.
         """
         try:
             response = requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/orders',
