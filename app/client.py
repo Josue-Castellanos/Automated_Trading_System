@@ -314,7 +314,14 @@ class Client:
         Returns:
             float: The total cash balance in the account.
         """
-        hash = self.schwab.account_numbers()[0].get('hashValue')
+        while True:
+            try:
+                # Attempt to get hash until succeeded
+                hash = self.schwab.account_numbers()[0].get('hashValue')
+                break  # Exit the loop if successful
+            except KeyError:
+                # Handle the error and retry
+                print("Invalid Hash returned.")
         account_info = self.schwab.account_number(hash, "positions")
         total_cash = account_info["securitiesAccount"]["currentBalances"]["totalCash"]
         return total_cash 
@@ -443,7 +450,20 @@ class Client:
         # TODO:// Use the date in the spread sheet
 
         # This is something I can check to see If I had  Green or red day
-        self.set_day(int(row.iloc[0]['Day']))
+        self.set_day(int(row.iloc[0]['Day']))       # Theres an error in production where on the weekends, this causes a server error becasue days are not availabel in the weekend on the spreed sheet
+        #     self.set_day(int(row.iloc[0]['Day']))
+        #                      ~~~~~~~~^^^
+        #   File "/home/ubuntu/Automated_Trading_System/venv/lib/python3.12/site-packages/pandas/core/indexing.py", line 1191, in __getitem__
+        #     return self._getitem_axis(maybe_callable, axis=axis)
+        #            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        #   File "/home/ubuntu/Automated_Trading_System/venv/lib/python3.12/site-packages/pandas/core/indexing.py", line 1752, in _getitem_axis
+        #     self._validate_integer(key, axis)
+        #   File "/home/ubuntu/Automated_Trading_System/venv/lib/python3.12/site-packages/pandas/core/indexing.py", line 1685, in _validate_integer
+        #     raise IndexError("single positional indexer is out-of-bounds")
+        # IndexError: single positional indexer is out-of-bounds
+
+
+
         self.set_daily_goal(int(row.iloc[0]['Adj$Gain'][1:]))
         self.set_adjusted_balance(int(row.iloc[0]['Adj$Balance'][1:]))
         self.set_position_size(int(row.iloc[0]['Pos#Open']))
