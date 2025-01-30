@@ -2,6 +2,7 @@ import json
 import time
 import threading
 from datetime import datetime
+from config import Settings
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials
@@ -14,7 +15,7 @@ class Gmail:
     A class to handle Gmail operations, including authentication, email checking,
     and Google Sheets interactions.
     """
-    def __init__(self, settings):
+    def __init__(self):
         """
         Initialize the Gmail class, setting up environment variables,
         checking keys and managing tokens.
@@ -23,7 +24,7 @@ class Gmail:
         checking the validity of API keys and setting up authentication tokens.
         credentials, and other necessary attributes.
         """
-        self.settings = settings
+        self.settings = Settings()
         self.current_position = None
         self.creds = None
         self.CALLEVENT = threading.Event()

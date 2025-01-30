@@ -3,9 +3,13 @@ import json
 import threading
 import time
 import pandas as pd
+from schwab import Schwab
+from sheet import Sheet
 from datetime import datetime
 from utils  import dates
 from gmail import Gmail
+from config import Settings
+
 
 
 
@@ -16,7 +20,7 @@ class Client:
     This class integrates various components such as Schwab API, Gmail API,
     and a database manager to perform automated trading operations.
     """
-    def __init__(self, schwab, sheet, settings):
+    def __init__(self):
         """
         Initialize the Client instance with necessary components, attributes, and starting background processes.
 
@@ -24,9 +28,10 @@ class Client:
         for handling call and put events, checks for open positions, and starts
         automatic email checking (Daemon Thread).
         """
-        self.gmail = Gmail(settings)
-        self.schwab = schwab
-        self.sheet = sheet
+        self.settings = Settings()
+        self.gmail = Gmail()
+        self.schwab = Schwab()
+        self.sheet = Sheet()
         self.today, self.tomorrow = dates()
         self.now = datetime.now().strftime("%-m/%-d/%Y")        
         self.loss_percentage = -50.00                           # ADJUST: (-50.00%) change if you need to adjust risk
@@ -40,10 +45,10 @@ class Client:
 
         threading.Thread(target=self.handleCallEvent, daemon=True).start()
         threading.Thread(target=self.handlePutEvent, daemon=True).start()  
-              
         self.check_position(self.position_type())
         self.gmail.set_checker(True)
         self.gmail.check_email_automatic()
+
 
 
 # ************************************************************************************************************************
@@ -105,7 +110,7 @@ class Client:
                 self.gmail.reset_position()
 
             self.gmail.get_call_event().clear()
-    
+
 
 # ************************************************************************************************************************
 # ************************************************ TRADING SYSTEM ********************************************************
@@ -122,8 +127,10 @@ class Client:
         """
         options = self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today)
         strike_price_df = self.create_dataframe(options)
-
-        filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
+        if type=='PUT':
+            filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price][::-1]
+        else:
+            filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
         if not filtered_ask_result.empty:
             contract = filtered_ask_result.iloc[0]

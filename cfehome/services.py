@@ -1,15 +1,15 @@
 from datetime import datetime, timedelta
 from app.schwab import Schwab
 from app.sheet import Sheet
-from app.config import settings
+from app.config import Settings
 import re
 
 
 
 class AppService:
     def __init__(self):
-        self._schwab = Schwab(settings)
-        self._sheet = Sheet(settings)
+        self._schwab = Schwab()
+        self._sheet = Sheet()
         self.today = datetime.now()
         self.tomorrow = self.today + timedelta(days=1)
 

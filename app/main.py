@@ -2,19 +2,14 @@ from client import Client
 from datetime import datetime, time
 import time as t
 
-from config import settings 
 from tokens import Tokens
-from schwab import Schwab
-from sheet import Sheet
 
 # Main.py will later be changed to MarketWatcher.py so services.py in Django can stop create and instance and start the 
 # System from the fronend once the user has been authorized through a login procedure using JWT. 
 
 class MarketWatcher:
-    def __init__(self, schwab, sheet):
+    def __init__(self):
         self.client = None
-        self.schwab = schwab
-        self.sheet = sheet
 
 
     def is_market_open(self):
@@ -56,7 +51,7 @@ class MarketWatcher:
 
 
     def start_client(self):
-        self.client = Client(self.schwab, self.sheet, settings)
+        self.client = Client()
     
     
     def start_watching(self):
@@ -69,13 +64,10 @@ class MarketWatcher:
 
 
 def main():
-    tokens = Tokens(settings)
-    schwab = Schwab(settings)
-    sheet = Sheet(settings)
-
+    tokens = Tokens()
 
     # Instantiate MarketWatcher
-    market_watcher = MarketWatcher(schwab, sheet)
+    market_watcher = MarketWatcher()
 
     # Start watching the market and managing the client based on market hours
     market_watcher.start_watching()

@@ -10,6 +10,7 @@ import json
 from datetime import datetime, timedelta, timezone
 import ssl
 import http.server
+from config import Settings
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
@@ -23,13 +24,13 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 
 class Tokens():
-    def __init__(self, settings):
+    def __init__(self):
         """
         Load environment variables from a .env file.
         
         Sets up API keys, account numbers, and endpoint URLs.
         """
-        self.settings = settings
+        self.settings = Settings
         self.refreshToken = None
         self.accessToken = None
         self.idToken = None
@@ -49,6 +50,13 @@ class Tokens():
 
         self._check_schwab_tokens()
         self.update_tokens_automatic()
+
+
+    def reload_settings(self):
+        """
+        Reload the .env settings dynamically.
+        """
+        self.settings = Settings.reload()  # Reload settings from .env
 
 
 # ***********************************************************************************************************
@@ -209,6 +217,7 @@ class Tokens():
         """
         def checker():
             while True:
+                self.reload_settings()
                 self._check_schwab_tokens()
                 self._check_google_tokens()
                 time.sleep(60)

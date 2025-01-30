@@ -1,9 +1,11 @@
 import json
 import requests
+from config import Settings
+
 
 
 class Schwab():
-    def __init__(self, settings):
+    def __init__(self):
         """
         Initialize the Schwab class.
         
@@ -11,7 +13,14 @@ class Schwab():
         """
         # self.stream = Stream(self)
         self.timeout = 5
-        self.settings = settings
+        self.settings = Settings()
+
+
+    def reload_settings(self):
+        """
+        Reload the .env settings dynamically.
+        """
+        self.settings = Settings.reload()  # Reload settings from .env
 
 
     def _get_headers(self):
@@ -62,6 +71,7 @@ class Schwab():
             This method should be invoked first to retrieve encrypted account values for subsequent calls.
         """
         try:
+            self.reload_settings()
             response = requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/accountNumbers',
                                     headers=self._get_headers(),
                                     timeout=self.timeout)
@@ -84,6 +94,7 @@ class Schwab():
         Note:
             Balances are displayed by default. Positions are displayed based on the "positions" flag.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/', 
                             headers=self._get_headers(), 
                             params=self._params_parser({'fields': fields}), timeout=self.timeout)
@@ -104,6 +115,7 @@ class Schwab():
             Balance information is displayed by default. Positions are returned based on the "positions" flag.
         """
         try:
+            self.reload_settings()
             response = requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}', 
                                 headers=self._get_headers(), 
                                 params=self._params_parser({'fields': fields}), timeout=self.timeout)
@@ -153,6 +165,7 @@ class Schwab():
             Maximum date range is 1 year.
         """
         try:
+            self.reload_settings()
             response = requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/orders', 
                                 headers=self._get_headers(), 
                                 params=self._params_parser({
@@ -180,6 +193,7 @@ class Schwab():
         Note:
             If the order is immediately filled, the order number may not be returned.
         """
+        self.reload_settings()
         return requests.post(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/orders', 
                              headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}', 'Content-Type': 'application/json'}, 
                              json=order, timeout=self.timeout)
@@ -196,6 +210,7 @@ class Schwab():
         Returns:
             requests.Response: The API response indicating the result of the cancellation.
         """
+        self.reload_settings()
         return requests.delete(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/orders/{orderId}', 
                                headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'})
 
@@ -211,6 +226,7 @@ class Schwab():
         Returns:
             requests.Response: The API response containing the order details.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/orders/{orderId}', 
                             headers=self._get_headers())
 
@@ -244,6 +260,7 @@ class Schwab():
         Returns:
             requests.Response: The API response containing the option chain information.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.MARKET_ENDPOINT}/chains', 
                             headers={"Accept": "application/json", 'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'}, 
                             params=self._params_parser({
@@ -265,6 +282,7 @@ class Schwab():
         Returns:
             requests.Response: The API response containing the option expiration chain.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.MARKET_ENDPOINT}/expirationchain', 
                             headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'}, 
                             params=self._params_parser({'symbol': symbol}))
@@ -285,6 +303,7 @@ class Schwab():
         Note:
             The existing order will be canceled and a new order will be created.
         """
+        self.reload_settings()
         return requests.put(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountHash}/orders/{orderId}',
                             headers={"Accept": "application/json", 'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}',
                                      "Content-Type": "application/json"}, json=order)
@@ -327,6 +346,7 @@ class Schwab():
             Maximum date range is 60 days.
         """
         try:
+            self.reload_settings()
             response = requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/orders',
                                 headers={"Accept": "application/json", 'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'},
                                 params=self._params_parser(
@@ -355,6 +375,7 @@ class Schwab():
         Note:
             Maximum number of transactions in response is 3000. Maximum date range is 1 year.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountHash}/transactions',
                             headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'},
                             params=self._params_parser(
@@ -373,6 +394,7 @@ class Schwab():
         Returns:
             requests.Response: The API response containing the transaction details.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountHash}/transactions/{transactionId}',
                             headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'},
                             params={'accountNumber': accountHash, 'transactionId': transactionId})
@@ -385,6 +407,7 @@ class Schwab():
         Returns:
             requests.Response: The API response containing user preferences and streaming info.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/userPreference',
                             headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'})
 
@@ -411,6 +434,7 @@ class Schwab():
         Returns:
             requests.Response: The API response containing the price history data.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.MARKET_ENDPOINT}/pricehistory', 
                             headers={"Accept": "application/json", 'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'}, 
                             params=self._params_parser({
@@ -434,6 +458,7 @@ class Schwab():
         Returns:
             requests.Response: The API response containing the movers data.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.MARKET_ENDPOINT}/movers/{symbol}',
                             headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'},
                             params=self._params_parser({'sort': sort, 'frequency': frequency}))
@@ -450,6 +475,7 @@ class Schwab():
         Returns:
             requests.Response: The API response containing market hours information.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.MARKET_ENDPOINT}/markets',
                             headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'},
                             params=self._params_parser(
@@ -468,6 +494,7 @@ class Schwab():
         Returns:
             requests.Response: The API response containing market hours information for the specified market.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.MARKET_ENDPOINT}/markets/{market_id}',
                             headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'},
                             params=self._params_parser({'date': self._time_converter(date, 'YYYY-MM-DD')}))
@@ -497,6 +524,7 @@ class Schwab():
         Note:
             The behavior and returned data will vary based on the chosen projection type.
         """
+        self.reload_settings()
         valid_projections = ["symbol-search", "symbol-regex", "desc-search", "desc-regex", "fundamental"]
         if projection not in valid_projections:
             raise ValueError(f"Invalid projection type. Must be one of {valid_projections}")
@@ -522,5 +550,6 @@ class Schwab():
             CUSIP is a nine-character alphanumeric code that identifies a North American financial security for the purposes of 
             facilitating clearing and settlement of trades.
         """
+        self.reload_settings()
         return requests.get(f'{self.settings.MARKET_ENDPOINT}/instruments/{cusip_id}',
                             headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'})

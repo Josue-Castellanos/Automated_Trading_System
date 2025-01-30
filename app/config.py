@@ -30,8 +30,13 @@ class Settings(BaseSettings):
     CREDENTIALS_PATH: str
     TOKEN_PATH: str
 
-
-settings = Settings()
+    @classmethod
+    def reload(cls):
+        """
+        Reload the .env file and refresh settings.
+        """
+        load_dotenv()  # Reload .env variables into the environment
+        return cls()
 
 
 
