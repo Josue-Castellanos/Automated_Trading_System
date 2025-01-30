@@ -17,8 +17,8 @@ class MarketWatcher:
         Check if the current time is within market hours
         """
         now = datetime.now()
-        market_open = time(9, 30)  # e.g., 9:30 AM
-        market_close = time(15, 58)  # e.g., 3:58 PM
+        market_open = time(6, 30)  # e.g., 9:30 AM
+        market_close = time(12, 58)  # e.g., 3:58 PM
         return market_open <= now.time() <= market_close
 
     def manage_client(self):

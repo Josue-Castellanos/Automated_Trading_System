@@ -86,7 +86,7 @@ class Gmail:
             - first 30 minutes from market open
         """
         now = datetime.now()
-        market_smart_money = time(10, 00)  # e.g., 10:00 AM
+        market_smart_money = time(7, 00)  # e.g., 10:00 AM
         return now.time() < market_smart_money  
 
 
