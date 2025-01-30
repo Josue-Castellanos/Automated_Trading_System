@@ -30,7 +30,7 @@ class Tokens():
         
         Sets up API keys, account numbers, and endpoint URLs.
         """
-        self.settings = Settings
+        self.settings = Settings()
         self.refreshToken = None
         self.accessToken = None
         self.idToken = None
