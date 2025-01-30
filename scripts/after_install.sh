@@ -6,3 +6,4 @@ sudo systemctl daemon-reload
 sudo systemctl restart nginx
 sudo systemctl restart gunicorn
 sudo service gunicorn restart
+echo "Done!"
