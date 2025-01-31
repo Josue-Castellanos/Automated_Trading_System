@@ -2,9 +2,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 import os
 
+load_dotenv()
+
 
 class Settings(BaseSettings):
-    load_dotenv()
     model_config = SettingsConfigDict(env_file=".env")
     
     ACCESS_TOKEN_DATETIME: str
@@ -35,7 +36,7 @@ class Settings(BaseSettings):
         """
         Reload the .env file and refresh settings.
         """
-        load_dotenv()  # Reload .env variables into the environment
+        load_dotenv(override=True)  # Reload .env variables into the environment
         return cls()
 
 
