@@ -10,7 +10,9 @@ import json
 from datetime import datetime, timedelta, timezone
 import ssl
 import http.server
-from .config import Settings
+import sys
+sys.path.append("/home/ubuntu/Automated_Trading_System")
+from app.config import Settings
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization

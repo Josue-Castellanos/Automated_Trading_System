@@ -1,6 +1,8 @@
 import json
 import requests
-from .config import Settings
+import sys
+sys.path.append("/home/ubuntu/Automated_Trading_System")
+from app.config import Settings
 
 
 

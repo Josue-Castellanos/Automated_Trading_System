@@ -8,9 +8,6 @@ from sheet import Sheet
 from datetime import datetime
 from utils  import dates
 from gmail import Gmail
-from .config import Settings
-
-
 
 
 class Client:
@@ -28,7 +25,6 @@ class Client:
         for handling call and put events, checks for open positions, and starts
         automatic email checking (Daemon Thread).
         """
-        self.settings = Settings()
         self.gmail = Gmail()
         self.schwab = Schwab()
         self.sheet = Sheet()
