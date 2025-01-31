@@ -1,7 +1,7 @@
 
 import pandas as pd
 from datetime import datetime
-from config import Settings
+from .config import Settings
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials

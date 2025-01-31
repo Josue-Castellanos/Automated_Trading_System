@@ -8,7 +8,7 @@ from sheet import Sheet
 from datetime import datetime
 from utils  import dates
 from gmail import Gmail
-from config import Settings
+from .config import Settings
 
 
 

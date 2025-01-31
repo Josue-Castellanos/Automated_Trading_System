@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from app.schwab import Schwab
 from app.sheet import Sheet
-from app.config import Settings
 import re
 
 

@@ -1,6 +1,6 @@
 import json
 import requests
-from config import Settings
+from .config import Settings
 
 
 
