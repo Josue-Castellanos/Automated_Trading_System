@@ -42,15 +42,15 @@ class Signals():
         
         elif signal_type in CALL_SIGNAL_TYPES:
             print(f"Received CALL signal: {signal_type}")
-            # if self.current_position != 'CALL' and not self.CALLEVENT.is_set():
-            #     self.CALLEVENT.set()
-            #     self.PUTEVENT.clear()
+            if self.current_position != 'CALL' and not self.CALLEVENT.is_set():
+                self.CALLEVENT.set()
+                self.PUTEVENT.clear()
 
         elif signal_type in PUT_SIGNAL_TYPES:
             print(f"Received PUT signal: {signal_type}")
-            # if self.current_position != 'PUT' and not self.PUTEVENT.is_set():
-            #     self.PUTEVENT.set()
-            #     self.CALLEVENT.clear()
+            if self.current_position != 'PUT' and not self.PUTEVENT.is_set():
+                self.PUTEVENT.set()
+                self.CALLEVENT.clear()
 
 
     def idle_monitor(self):
@@ -68,7 +68,7 @@ class Signals():
             try:
                 # ADD is_Market_Open() here instead of True
                 while self.is_market_open():
-                    print("Waiting for new emails...")
+                    # print("Waiting for new emails...")
                     client.idle()  # Start IDLE mode
                     client.idle_done()  # Stops IDLE mode when the client receives an email
                     self.check_new_emails(client)
