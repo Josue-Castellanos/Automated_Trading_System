@@ -7,14 +7,14 @@ from schwab import Schwab
 from sheet import Sheet
 from datetime import datetime
 from utils  import dates
-from gmail import Gmail
+from signals import Signals
 
 
 class Client:
     """
     A class representing a client for automated trading operations.
 
-    This class integrates various components such as Schwab API, Gmail API,
+    This class integrates various components such as Schwab API, signals API,
     and a database manager to perform automated trading operations.
     """
     def __init__(self):
@@ -25,7 +25,7 @@ class Client:
         for handling call and put events, checks for open positions, and starts
         automatic email checking (Daemon Thread).
         """
-        self.gmail = Gmail()
+        self.signals = Signals()
         self.schwab = Schwab()
         self.sheet = Sheet()
         self.today, self.tomorrow = dates()
@@ -42,9 +42,7 @@ class Client:
         threading.Thread(target=self.handleCallEvent, daemon=True).start()
         threading.Thread(target=self.handlePutEvent, daemon=True).start()  
         self.check_position(self.position_type())
-        self.gmail.set_checker(True)
-        self.gmail.check_email_automatic()
-
+        self.signals.idle_monitor()
 
 
 # ************************************************************************************************************************
@@ -61,22 +59,23 @@ class Client:
             None
         """
         while True:
-            self.gmail.get_put_event().wait()
-            open_position = self.gmail.get_current_position()
+            self.signals.get_put_event().wait()
 
-            if open_position != 'PUT':
+            open_position = self.signals.get_current_position()
+
+            if open_position != 'PUT' and self.is_enough_funds():
                 self.sell_position()
                 put_contract = self.best_contract('PUT')
 
                 if put_contract is not None:
                     self.buy_position(put_contract, 'PUT')
-                    self.gmail.set_current_position('PUT')
+                    self.signals.set_current_position('PUT')
                     self.calculate_remaining_balance()
                     self.check_position('PUT')
                     
-                self.gmail.reset_position()
+                self.signals.reset_position()
 
-            self.gmail.get_put_event().clear()
+            self.signals.get_put_event().clear()
 
 
     def handleCallEvent(self):
@@ -90,8 +89,9 @@ class Client:
             None
         """
         while True:
-            self.gmail.get_call_event().wait()
-            open_position = self.gmail.get_current_position()
+            self.signals.get_call_event().wait()
+
+            open_position = self.signals.get_current_position()
 
             if open_position != 'CALL' and self.is_enough_funds():
                 self.sell_position()
@@ -99,13 +99,13 @@ class Client:
 
                 if call_contract is not None:
                     self.buy_position(call_contract, 'CALL')
-                    self.gmail.set_current_position('CALL')
+                    self.signals.set_current_position('CALL')
                     self.calculate_remaining_balance()
                     self.check_position('CALL')
                     
-                self.gmail.reset_position()
+                self.signals.reset_position()
 
-            self.gmail.get_call_event().clear()
+            self.signals.get_call_event().clear()
 
 
 # ************************************************************************************************************************
@@ -147,11 +147,10 @@ class Client:
         Returns:
             None
         """
-        hash = self.schwab.account_numbers()[0].get('hashValue')
-        symbol = order["orderLegCollection"][0]["instrument"]["symbol"]
-        price = order["price"]
-
         try:
+            hash = self.schwab.account_numbers()[0].get('hashValue')
+            symbol = order["orderLegCollection"][0]["instrument"]["symbol"]
+            price = order["price"]
             self.schwab.post_orders(order, accountNumber=hash).json()
         except json.decoder.JSONDecodeError:
             pass
@@ -169,33 +168,22 @@ class Client:
         """
         if type is None:
             return
-        
-        hash = self.schwab.account_numbers()[0].get('hashValue')
-            
-        inPosition = True
-        while inPosition:
-            time.sleep(1)
-            open_position = self.schwab.account_number(hash, "positions")
-            try:
-                symbol = open_position["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
-                profit_loss_percentage = open_position["securitiesAccount"]["positions"][0]["currentDayProfitLossPercentage"]
-                # This logic here has to be chamged to the market value diff or somehting else
-                # *****************************************************************************
-                price = open_position["securitiesAccount"]["positions"][0]["averagePrice"]
-                market_value = open_position["securitiesAccount"]["positions"][0]["marketValue"] / 100
-                price_change = market_value - price
-                profit_percentage = (price_change / price) * 100
-                # *****************************************************************************
-
-
+        try:                
+            inPosition = True
+            while inPosition:
+                time.sleep(1)
+                hash = self.schwab.account_numbers()[0].get('hashValue')
                 
-                if profit_loss_percentage >= self.profit_percentage or profit_loss_percentage <= self.loss_percentage:
+                open_position = self.schwab.account_number(hash, "positions")
+                
+                profit_loss_percentage = open_position["securitiesAccount"]["positions"][0]["currentDayProfitLossPercentage"]
+                
+                if profit_loss_percentage >= self.profit_percentage or profit_loss_percentage <= self.loss_percentage: 
                     self.sell_position(type)
                     inPosition = False
                     break   
-            except KeyError as e:
-                inPosition = False
-                break
+        except KeyError as e:
+            inPosition = False
 
 
     def sell_position(self):
@@ -208,15 +196,14 @@ class Client:
         Returns:
             None
         """
-        print("Found Put Signal")
-        hash = self.schwab.account_numbers()[0].get('hashValue')
-        order = self.schwab.account_number(hash, "positions")
-
         try:
+            hash = self.schwab.account_numbers()[0].get('hashValue')
+            order = self.schwab.account_number(hash, "positions")
             market_value = order["securitiesAccount"]["positions"][0]["marketValue"] / 100
             symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"] 
             sell_order = self.create_order(round(market_value, 2), symbol, 'SELL')
             self.schwab.post_orders(sell_order, accountNumber=hash).json()
+            self.save_settings()
         except json.decoder.JSONDecodeError:
             pass
         except KeyError as e:
@@ -293,19 +280,18 @@ class Client:
         Returns:
             str or None: The type of the current position ('CALL' or 'PUT'), or None if no position is open.
         """
-        hash = self.schwab.account_numbers()[0].get('hashValue')
-        order = self.schwab.account_number(hash, "positions")
-        type = None
+
         try:
+            hash = self.schwab.account_numbers()[0].get('hashValue')
+            order = self.schwab.account_number(hash, "positions")
             symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
             type = symbol[12:13]
 
             if type == 'C':
-                self.gmail.set_current_position('CALL')
+                self.signals.set_current_position('CALL')
             elif type == 'P':
-                self.gmail.set_current_position('PUT')
-            return self.gmail.get_current_position()  
-            
+                self.signals.set_current_position('PUT')
+            return self.signals.get_current_position()  
         except KeyError as e:
             return None
         
@@ -327,6 +313,7 @@ class Client:
                 print("Invalid Hash returned.")
         account_info = self.schwab.account_number(hash, "positions")
         total_cash = account_info["securitiesAccount"]["currentBalances"]["totalCash"]
+        
         return total_cash 
     
 
@@ -450,23 +437,9 @@ class Client:
         """
         df = self.sheet.read_sheet()
         row = df[df['Date'] == self.now]
-        # TODO:// Use the date in the spread sheet
 
         # This is something I can check to see If I had  Green or red day
-        self.set_day(int(row.iloc[0]['Day']))       # Theres an error in production where on the weekends, this causes a server error becasue days are not availabel in the weekend on the spreed sheet
-        #     self.set_day(int(row.iloc[0]['Day']))
-        #                      ~~~~~~~~^^^
-        #   File "/home/ubuntu/Automated_Trading_System/venv/lib/python3.12/site-packages/pandas/core/indexing.py", line 1191, in __getitem__
-        #     return self._getitem_axis(maybe_callable, axis=axis)
-        #            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        #   File "/home/ubuntu/Automated_Trading_System/venv/lib/python3.12/site-packages/pandas/core/indexing.py", line 1752, in _getitem_axis
-        #     self._validate_integer(key, axis)
-        #   File "/home/ubuntu/Automated_Trading_System/venv/lib/python3.12/site-packages/pandas/core/indexing.py", line 1685, in _validate_integer
-        #     raise IndexError("single positional indexer is out-of-bounds")
-        # IndexError: single positional indexer is out-of-bounds
-
-
-
+        self.set_day(int(row.iloc[0]['Day']))      
         self.set_daily_goal(int(row.iloc[0]['Adj$Gain'][1:]))
         self.set_adjusted_balance(int(row.iloc[0]['Adj$Balance'][1:]))
         self.set_position_size(int(row.iloc[0]['Pos#Open']))

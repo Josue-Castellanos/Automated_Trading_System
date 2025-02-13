@@ -28,8 +28,12 @@ class Settings(BaseSettings):
     CLIENT_SECRET: str
     SHEET_ID: str
     PERFORMANCE_PATH: str
-    CREDENTIALS_PATH: str
-    TOKEN_PATH: str
+
+    IMAP_SERVER: str
+    IMAP_PORT: int
+    EMAIL_ACCOUNT: str
+    EMAIL_PASSWORD: str
+
 
     @classmethod
     def reload(cls):
