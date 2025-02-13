@@ -1,5 +1,6 @@
 annotated-types==0.7.0
 appnope==0.1.4
+APScheduler==3.11.0
 asgiref==3.8.1
 asttokens==2.4.1
 beautifulsoup4==4.12.3
@@ -25,9 +26,11 @@ google-auth==2.36.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 googleapis-common-protos==1.66.0
+gunicorn==21.2.0
 html5lib==1.1
 httplib2==0.22.0
 idna==3.10
+IMAPClient==3.0.1
 injector==0.22.0
 ipykernel==6.29.5
 ipython==8.29.0
@@ -82,11 +85,11 @@ tornado==6.4.2
 traitlets==5.14.3
 typing_extensions==4.12.2
 tzdata==2024.2
+tzlocal==5.2
 uritemplate==4.1.1
 urllib3==2.2.3
 wcwidth==0.2.13
 webencodings==0.5.1
 websockets==14.1
+whitenoise==6.6.0
 yfinance==0.2.50
-whitenoise==6.8.2
-gunicorn==23.0.0
