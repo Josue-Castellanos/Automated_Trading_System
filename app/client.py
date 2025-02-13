@@ -455,7 +455,7 @@ class Client:
         # Request the accounts balance and send it to sheet
         sheet_name = 'perf'
         column = 'P'
-        row = 10 + self.day()
+        row = 10 + self.day
         
         range = f'{sheet_name}!{column}{row}'
         
