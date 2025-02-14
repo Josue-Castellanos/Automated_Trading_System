@@ -189,5 +189,3 @@ class Signals():
         """
         return self.current_position
     
-signals = Signals()
-signals.idle_monitor()
