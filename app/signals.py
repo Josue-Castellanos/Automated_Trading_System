@@ -68,7 +68,7 @@ class Signals():
             try:
                 # ADD is_Market_Open() here instead of True
                 while self.is_market_open():
-                    # print("Waiting for new emails...")
+                    print("Waiting for new emails...")
                     client.idle()  # Start IDLE mode
                     client.idle_done()  # Stops IDLE mode when the client receives an email
                     self.check_new_emails(client)

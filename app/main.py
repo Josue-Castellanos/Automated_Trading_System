@@ -52,8 +52,8 @@ if __name__ == "__main__":
     tokens = Tokens()
     scheduler = Scheduler()
 
-    # try:
-    #     while True:
-    #         pass  # Keeps the script alive
-    # except KeyboardInterrupt:
-    #     print("Scheduler stopped manually.")
+    try:
+        while True:
+            pass  # Keeps the script alive
+    except KeyboardInterrupt:
+        print("Scheduler stopped manually.")
