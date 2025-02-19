@@ -125,10 +125,10 @@ class Client:
         """
         options = self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today)
         strike_price_df = self.create_dataframe(options)
-        if type=='PUT':
-            filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price][::-1]
-        else:
-            filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
+        filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
+
+        if type == 'PUT':
+            filtered_ask_result = filtered_ask_result[::-1]
 
         if not filtered_ask_result.empty:
             contract = filtered_ask_result.iloc[0]
