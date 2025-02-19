@@ -16,22 +16,22 @@ class Scheduler:
         self.scheduler.add_job(self.start, 'cron', hour=13, minute=54, timezone=tz)
         self.scheduler.add_job(self.stop, 'cron', hour=13, minute=59, timezone=tz)
 
-        # # Check if market is already open when script starts
-        # if self.is_market_open():
-        #     self.start()
+        # Check if market is already open when script starts
+        if self.is_market_open():
+            self.start()
 
         # Start the scheduler
         self.scheduler.start()
 
 
-    # def is_market_open(self):
-    #     """
-    #     Check if the current time is within market hours
-    #     """
-    #     now = datetime.now()
-    #     market_open = time(6, 30)  # e.g., 9:30 AM
-    #     market_close = time(13, 58)  # e.g., 3:58 PM
-    #     return market_open <= now.time() <= market_close
+    def is_market_open(self):
+        """
+        Check if the current time is within market hours
+        """
+        now = datetime.now()
+        market_open = time(6, 30)  # e.g., 9:30 AM
+        market_close = time(13, 58)  # e.g., 3:58 PM
+        return market_open <= now.time() <= market_close
     
 
     def start(self):
