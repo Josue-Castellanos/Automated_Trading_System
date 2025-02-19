@@ -69,7 +69,8 @@ class Client:
 
                 if put_contract is not None:
                     self.buy_position(put_contract, 'PUT')
-                    self.signals.set_current_position('PUT')
+                    if self.position_type() is None:
+                        break
                     self.calculate_remaining_balance()
                     self.check_position('PUT')
                     
@@ -99,7 +100,8 @@ class Client:
 
                 if call_contract is not None:
                     self.buy_position(call_contract, 'CALL')
-                    self.signals.set_current_position('CALL')
+                    if self.position_type() is None:
+                        break
                     self.calculate_remaining_balance()
                     self.check_position('CALL')
                     
@@ -286,14 +288,14 @@ class Client:
             order = self.schwab.account_number(hash, "positions")
             symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
             type = symbol[12:13]
-
             if type == 'C':
                 self.signals.set_current_position('CALL')
             elif type == 'P':
                 self.signals.set_current_position('PUT')
-            return self.signals.get_current_position()  
         except KeyError as e:
-            return None
+            self.signals.set_current_position(None)
+   
+        return self.signals.get_current_position()  
         
 
     def total_cash(self):
