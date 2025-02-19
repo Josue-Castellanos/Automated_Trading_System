@@ -103,8 +103,8 @@ class Signals():
         Check if the current time is within market hours
         """
         now = datetime.now()
-        market_open = time(6, 30)  # e.g., 9:30 AM
-        market_close = time(13, 58)  # e.g., 3:58 PM
+        market_open = time(6, 30)  # e.g., 6:30 AM
+        market_close = time(12, 58)  # e.g., 12:58 PM
         return market_open <= now.time() <= market_close
     
 
@@ -114,7 +114,7 @@ class Signals():
             - first 30 minutes from market open in Pacific time
         """
         now = datetime.now()
-        market_smart_money = time(7, 00)  # e.g., 10:00 AM
+        market_smart_money = time(7, 00)  # e.g., 7:00 AM
 
         return now.time() < market_smart_money  
     

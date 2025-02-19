@@ -13,8 +13,8 @@ class Scheduler:
         tz = pytz.timezone('America/Los_Angeles')
 
         # Schedule the start and stop of the client with the specified timezone
-        self.scheduler.add_job(self.start, 'cron', hour=13, minute=54, timezone=tz)
-        self.scheduler.add_job(self.stop, 'cron', hour=13, minute=59, timezone=tz)
+        self.scheduler.add_job(self.start, 'cron', hour=6, minute=30, timezone=tz)
+        self.scheduler.add_job(self.stop, 'cron', hour=12, minute=59, timezone=tz)
 
         # Check if market is already open when script starts
         if self.is_market_open():
@@ -29,8 +29,8 @@ class Scheduler:
         Check if the current time is within market hours
         """
         now = datetime.now()
-        market_open = time(6, 30)  # e.g., 9:30 AM
-        market_close = time(13, 58)  # e.g., 3:58 PM
+        market_open = time(6, 30)  # e.g., 6:30 AM
+        market_close = time(12, 59)  # e.g., 12:59 PM
         return market_open <= now.time() <= market_close
     
 
