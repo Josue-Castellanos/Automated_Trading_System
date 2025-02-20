@@ -123,18 +123,18 @@ class Client:
         Returns:
             dict or None: A dictionary representing the best contract order, or None if no suitable contract is found.
         """
-        options = self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today)
-        strike_price_df = self.create_dataframe(options)
-        filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
+        try:
+            options = self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today)
+            strike_price_df = self.create_dataframe(options)
+            filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
-        if type == 'PUT':
-            filtered_ask_result = filtered_ask_result[::-1]
+            if type == 'PUT':
+                filtered_ask_result = filtered_ask_result[::-1]
 
-        if len(filtered_ask_result) > 0:
             contract = filtered_ask_result.iloc[0]
             buy_order = self.create_order(contract.get('Ask'), contract.get('Symbol'), 'BUY')
             return buy_order
-        else:
+        except IndexError:
             return None
     
 
@@ -427,7 +427,7 @@ class Client:
         Returns:
             None
         """
-        self.contract_price = contract_price
+        self.contract_price = contract_price / 100
     
 
 # ******************************************************************************************************************
@@ -446,7 +446,7 @@ class Client:
         self.set_adjusted_balance(int(row.iloc[0]['Adj$Balance'][1:]))
         self.set_position_size(int(row.iloc[0]['Pos#Open']))
         self.set_profit_percentage(float(row.iloc[0]['Pos%Tgt'][:-1]))
-        self.set_contract_price(int(row.iloc[0]['Pos$Size'][1:]))
+        self.set_contract_price(float(row.iloc[0]['Pos$Size'][1:]))
         self.set_balance(self.total_cash())
     
 
