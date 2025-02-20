@@ -130,7 +130,7 @@ class Client:
         if type == 'PUT':
             filtered_ask_result = filtered_ask_result[::-1]
 
-        if not filtered_ask_result.empty:
+        if len(filtered_ask_result) > 0:
             contract = filtered_ask_result.iloc[0]
             buy_order = self.create_order(contract.get('Ask'), contract.get('Symbol'), 'BUY')
             return buy_order
