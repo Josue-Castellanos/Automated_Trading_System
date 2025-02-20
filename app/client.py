@@ -293,7 +293,7 @@ class Client:
             elif type == 'P':
                 self.signals.set_current_position('PUT')
         except KeyError as e:
-            self.signals.set_current_position(None)
+            self.signals.reset_position()
    
         return self.signals.get_current_position()  
         
