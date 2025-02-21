@@ -35,7 +35,7 @@ class Scheduler:
     
 
     def start(self):
-        if not self.client:
+        if self.client is None:
             self.client = Client()
             print("Client started")
 

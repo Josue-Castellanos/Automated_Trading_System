@@ -410,8 +410,14 @@ class Schwab():
             requests.Response: The API response containing user preferences and streaming info.
         """
         self.reload_settings()
-        return requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/userPreference',
-                            headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'})
+        try:
+            response = requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/userPreference',
+                                headers=self._get_headers(),
+                                timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as e:
+            return {"error": f"Failed to retrieve stream information: {str(e)}"}
 
 
     # """

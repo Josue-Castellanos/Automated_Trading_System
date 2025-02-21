@@ -171,21 +171,24 @@ class Client:
         if type is None:
             return
         try:                
-            inPosition = True
-            while inPosition:
-                time.sleep(1)
+            while True:
                 hash = self.schwab.account_numbers()[0].get('hashValue')
                 
                 open_position = self.schwab.account_number(hash, "positions")
                 
                 profit_loss_percentage = open_position["securitiesAccount"]["positions"][0]["currentDayProfitLossPercentage"]
-                
-                if profit_loss_percentage >= self.profit_percentage or profit_loss_percentage <= self.loss_percentage: 
+                print(f"Current Contracts Percentage: {profit_loss_percentage}%")
+                profit_loss_value = int(open_position["securitiesAccount"]["positions"][0]["currentDayProfitLoss"])
+                print(f"Current Contracts Profit/Loss: {profit_loss_value}")
+                print("")
+
+                if profit_loss_value >= self.daily_goal or profit_loss_percentage <= self.loss_percentage:
                     self.sell_position(type)
-                    inPosition = False
-                    break   
+                    break
+                
+                time.sleep(1) 
         except KeyError as e:
-            inPosition = False
+            return
 
 
     def sell_position(self):

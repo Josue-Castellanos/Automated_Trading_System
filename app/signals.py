@@ -37,7 +37,7 @@ class Signals():
         signal_type = subject[33:39].upper()
 
         if self.is_smart_money():
-            print("Smart money, we wait.")
+            print(f"Received {signal_type} Alert: Smart money, we wait.")
             return
         
         elif signal_type in CALL_SIGNAL_TYPES:
@@ -68,7 +68,7 @@ class Signals():
             try:
                 # ADD is_Market_Open() here instead of True
                 while self.is_market_open():
-                    print("Waiting for new emails...")
+                    # print("Waiting for new emails...")
                     client.idle()  # Start IDLE mode
                     client.idle_done()  # Stops IDLE mode when the client receives an email
                     self.check_new_emails(client)
@@ -116,7 +116,7 @@ class Signals():
         now = datetime.now()
         market_smart_money = time(7, 00)  # e.g., 7:00 AM
 
-        return now.time() < market_smart_money  
+        return now.time() <= market_smart_money  
     
 
     def reset_position(self):
