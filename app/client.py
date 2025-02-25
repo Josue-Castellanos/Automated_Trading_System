@@ -30,7 +30,8 @@ class Client:
         self.sheet = Sheet()
         self.today, self.tomorrow = dates()
         self.now = datetime.now().strftime("%-m/%-d/%Y")        
-        self.loss_percentage = -50.00                           # ADJUST: (-50.00%) change if you need to adjust risk
+        self.loss_percentage = float(-50.00)              
+        self.goal_percentage = float(100.00)
         self.position_size = None
         self.profit_percentage = None
         self.contract_price = None
@@ -151,12 +152,37 @@ class Client:
         """
         try:
             hash = self.schwab.account_numbers()[0].get('hashValue')
-            symbol = order["orderLegCollection"][0]["instrument"]["symbol"]
-            price = order["price"]
             self.schwab.post_orders(order, accountNumber=hash).json()
         except json.decoder.JSONDecodeError:
+            print("Bought contract!!")
             pass
 
+
+    def sell_position(self):
+        """
+        Sell the current open position.
+
+        This method attempts to sell the currently open position based on
+        the current market value and the initial purchase price.
+
+        Returns:
+            None
+        """
+        try:
+            hash = self.schwab.account_numbers()[0].get('hashValue')
+            open_position = self.schwab.account_number(hash, "positions")
+
+            market_value = open_position["securitiesAccount"]["positions"][0]["marketValue"] / 100
+            symbol = open_position["securitiesAccount"]["positions"][0]["instrument"]["symbol"] 
+
+            sell_order = self.create_order(round(market_value, 2), symbol, 'SELL')
+            self.schwab.post_orders(sell_order, accountNumber=hash).json()
+        except json.decoder.JSONDecodeError:
+            print("SOLD CONTRACT!!")
+            pass
+        except KeyError as e:
+            return
+        
 
     def check_position(self, type):
         """
@@ -175,42 +201,17 @@ class Client:
                 hash = self.schwab.account_numbers()[0].get('hashValue')
                 
                 open_position = self.schwab.account_number(hash, "positions")
-                
-                profit_loss_percentage = open_position["securitiesAccount"]["positions"][0]["currentDayProfitLossPercentage"]
-                print(f"Current Contracts Percentage: {profit_loss_percentage}%")
+                profit_loss_percentage = float(open_position["securitiesAccount"]["positions"][0]["currentDayProfitLossPercentage"])
                 profit_loss_value = int(open_position["securitiesAccount"]["positions"][0]["currentDayProfitLoss"])
-                print(f"Current Contracts Profit/Loss: {profit_loss_value}")
-                print("")
 
                 if profit_loss_value >= self.daily_goal or profit_loss_percentage <= self.loss_percentage:
                     self.sell_position()
                     break
-
+                else:
+                    print(f"Current Contracts Percentage: {profit_loss_percentage}%")
+                    print(f"Current Contracts Profit/Loss: {profit_loss_value}")
+                    print("")
                 time.sleep(1) 
-        except KeyError as e:
-            return
-
-
-    def sell_position(self):
-        """
-        Sell the current open position.
-
-        This method attempts to sell the currently open position based on
-        the current market value and the initial purchase price.
-
-        Returns:
-            None
-        """
-        try:
-            hash = self.schwab.account_numbers()[0].get('hashValue')
-            order = self.schwab.account_number(hash, "positions")
-            market_value = order["securitiesAccount"]["positions"][0]["marketValue"] / 100
-            symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"] 
-            sell_order = self.create_order(round(market_value, 2), symbol, 'SELL')
-            self.schwab.post_orders(sell_order, accountNumber=hash).json()
-            self.save_settings()
-        except json.decoder.JSONDecodeError:
-            pass
         except KeyError as e:
             return
 
