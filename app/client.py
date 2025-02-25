@@ -183,9 +183,9 @@ class Client:
                 print("")
 
                 if profit_loss_value >= self.daily_goal or profit_loss_percentage <= self.loss_percentage:
-                    self.sell_position(type)
+                    self.sell_position()
                     break
-                
+
                 time.sleep(1) 
         except KeyError as e:
             return
