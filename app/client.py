@@ -29,7 +29,7 @@ class Client:
         self.schwab = Schwab()
         self.sheet = Sheet()
         self.today, self.tomorrow = dates()
-        self.now = datetime.now().strftime("%-m/%-d/%Y")        
+        self.now = datetime.now().strftime("%-m/%-d/%Y")
         self.loss_percentage = float(-50.00)              
         self.goal_percentage = float(100.00)
         self.position_size = None
@@ -166,7 +166,6 @@ class Client:
 
             # RAISE EXCEPTION: If there is no contract
             contract = filtered_ask_result.iloc[0]
-
             buy_order = self.create_order(contract.get('Ask'), contract.get('Symbol'), 'BUY')
             return buy_order
         except IndexError:
@@ -254,7 +253,6 @@ class Client:
                 hash = self.schwab.account_numbers()[0].get('hashValue')
                 
                 open_position = self.schwab.account_number(hash, "positions")
-
                 # RASIE EXCEPTION: If theres no longer an open position
                 profit_loss_percentage = float(open_position["securitiesAccount"]["positions"][0]["currentDayProfitLossPercentage"])
                 profit_loss_value = int(open_position["securitiesAccount"]["positions"][0]["currentDayProfitLoss"])
@@ -266,6 +264,7 @@ class Client:
                     print(f"Current Contracts Percentage: {profit_loss_percentage}%")
                     print(f"Current Contracts Profit/Loss: {profit_loss_value}")
                     print("")
+
                 time.sleep(1) 
         except KeyError:
             return
@@ -345,10 +344,8 @@ class Client:
         try:
             hash = self.schwab.account_numbers()[0].get('hashValue')
             order = self.schwab.account_number(hash, "positions")
-
             # RASIE EXCEPTION: If there are no open positions
             symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
-
             type = symbol[12:13]
             if type == 'C':
                 self.signals.set_current_position('CALL')
