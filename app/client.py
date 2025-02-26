@@ -157,7 +157,8 @@ class Client:
             dict or None: A dictionary representing the best contract order, or None if no suitable contract is found.
         """
         try:
-            strike_price_df = self.create_dataframe(self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today))
+            options = self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today)
+            strike_price_df = self.create_dataframe(options)
             filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
             # If contract is a Put, reverse the df
@@ -172,7 +173,7 @@ class Client:
             return None
     
 
-    def buy_position(self, order, type):
+    def buy_position(self, order):
         """
         Execute a buy order for the given contract.
 
