@@ -67,10 +67,23 @@ class Client:
             if open_position != 'PUT' and self.is_enough_funds():
                 if open_position == 'CALL':
                     self.sell_position()
+
                 put_contract = self.best_contract('PUT')
 
                 if put_contract is not None:
-                    self.buy_position(put_contract, 'PUT')    
+                    self.buy_position(put_contract, 'PUT')
+
+                    max_attempts = 0
+                    while max_attempts < 4:
+                        time.sleep(15)
+                        # If position_type is None, then the order is pending
+                        if self.position_type() is None:
+                            self.replace_position('PUT')
+                        # Else the order was palced and we can exit
+                        else:
+                            break
+                        max_attempts += 1
+
                     self.calculate_remaining_balance()
                     self.check_position('PUT')
                     
@@ -93,26 +106,16 @@ class Client:
             self.signals.get_call_event().wait()
 
             open_position = self.signals.get_current_position()
-        # Step 1: 
-            # Check if the alert is not Call && enough funds to trade
-            # If its Call, ignore the alert
+
             if open_position != 'CALL' and self.is_enough_funds():
-        # Step 2:
-            # Check if the alert is a Put
-            # If so, sell the open contract
                 if open_position == 'PUT':
                     self.sell_position()
-        # Step 3: 
-            # Look for the best Call contract
+
                 call_contract = self.best_contract('CALL')
-        # Step 4:
-            # Check if the Call contract is not empty
-            # If so, buy it
+
                 if call_contract is not None:
                     self.buy_position(call_contract, 'CALL')
-        # Step 5:
-            # Check if the order is pending
-            # If so, replace the order. 
+
                     max_attempts = 0
                     while max_attempts < 4:
                         time.sleep(15)
@@ -124,9 +127,7 @@ class Client:
                             break
                         max_attempts += 1
                     self.calculate_remaining_balance()
-        # Step 6:
-            # Check the market value of contract for profit/loss
-            # If a profit or loss has reached then sell it. 
+
                     self.check_position('CALL')
                     
                 self.signals.reset_position()
