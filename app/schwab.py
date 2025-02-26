@@ -290,12 +290,12 @@ class Schwab():
                             params=self._params_parser({'symbol': symbol}))
 
 
-    def order_replace(self, accountHash, orderId, order):
+    def order_replace(self, accountNumber, orderId, order):
         """
         Replace an existing order for an account.
 
         Args:
-            accountHash (str): Account hash from account_linked().
+            accountNumber (str): Account hash from account_linked().
             orderId (str): The ID of the order to replace.
             order (dict): New order details.
 
@@ -306,7 +306,7 @@ class Schwab():
             The existing order will be canceled and a new order will be created.
         """
         self.reload_settings()
-        return requests.put(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountHash}/orders/{orderId}',
+        return requests.put(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/orders/{orderId}',
                             headers={"Accept": "application/json", 'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}',
                                      "Content-Type": "application/json"}, json=order)
 
@@ -360,12 +360,12 @@ class Schwab():
             return {"error": f"Failed to retrieve all accounts orders: {str(e)}"}
 
 
-    def transactions(self, accountHash, startDate, endDate, types, symbol=None):
+    def transactions(self, accountNumber, startDate, endDate, types, symbol=None):
         """
         Retrieve transactions for a specific account within a date range.
 
         Args:
-            accountHash (str): Account hash number.
+            accountNumber (str): Account hash number.
             startDate (datetime | str): Start date for the transaction search.
             endDate (datetime | str): End date for the transaction search.
             types (str): Transaction types to include.
@@ -378,28 +378,28 @@ class Schwab():
             Maximum number of transactions in response is 3000. Maximum date range is 1 year.
         """
         self.reload_settings()
-        return requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountHash}/transactions',
+        return requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/transactions',
                             headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'},
                             params=self._params_parser(
-                                {'accountNumber': accountHash, 'startDate': self._time_converter(startDate, format="iso"),
+                                {'accountNumber': accountNumber, 'startDate': self._time_converter(startDate, format="iso"),
                                  'endDate': self._time_converter(endDate, format="iso"), 'symbol': symbol, 'types': types}))
 
 
-    def transaction_details(self, accountHash, transactionId):
+    def transaction_details(self, accountNumber, transactionId):
         """
         Retrieve details of a specific transaction for a given account.
 
         Args:
-            accountHash (str): Account hash number.
+            accountNumber (str): Account hash number.
             transactionId (int): The ID of the transaction to retrieve.
 
         Returns:
             requests.Response: The API response containing the transaction details.
         """
         self.reload_settings()
-        return requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountHash}/transactions/{transactionId}',
+        return requests.get(f'{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/transactions/{transactionId}',
                             headers={'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'},
-                            params={'accountNumber': accountHash, 'transactionId': transactionId})
+                            params={'accountNumber': accountNumber, 'transactionId': transactionId})
 
 
     def preferences(self):

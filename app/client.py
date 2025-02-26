@@ -6,7 +6,7 @@ import pandas as pd
 from schwab import Schwab
 from sheet import Sheet
 from datetime import datetime
-from utils  import dates
+from utils  import dates, order_date
 from signals import Signals
 
 
@@ -41,7 +41,7 @@ class Client:
         self.set_settings()
 
         threading.Thread(target=self.handleCallEvent, daemon=True).start()
-        threading.Thread(target=self.handlePutEvent, daemon=True).start()  
+        threading.Thread(target=self.handlePutEvent, daemon=True).start()
         self.check_position(self.position_type())
         self.signals.idle_monitor()
 
@@ -65,13 +65,19 @@ class Client:
             open_position = self.signals.get_current_position()
 
             if open_position != 'PUT' and self.is_enough_funds():
-                self.sell_position()
+                if open_position == 'CALL':
+                    self.sell_position()
                 put_contract = self.best_contract('PUT')
 
                 if put_contract is not None:
                     self.buy_position(put_contract, 'PUT')
-                    if self.position_type() is None:
-                        break
+                    while True:
+                        time.sleep(15)
+                        if self.position_type() is None:
+                            self.replace_position('PUT')
+                        else:
+                            break
+
                     self.calculate_remaining_balance()
                     self.check_position('PUT')
                     
@@ -94,16 +100,40 @@ class Client:
             self.signals.get_call_event().wait()
 
             open_position = self.signals.get_current_position()
-
+        # Step 1: 
+            # Check if the alert is not Call && enough funds to trade
+            # If its Call, ignore the alert
             if open_position != 'CALL' and self.is_enough_funds():
-                self.sell_position()
+        # Step 2:
+            # Check if the alert is a Put
+            # If so, sell the open contract
+                if open_position == 'PUT':
+                    self.sell_position()
+        # Step 3: 
+            # Look for the best Call contract
                 call_contract = self.best_contract('CALL')
 
+        # Step 4:
+            # Check if the Call contract is not empty
+            # If so, buy it
                 if call_contract is not None:
                     self.buy_position(call_contract, 'CALL')
-                    if self.position_type() is None:
-                        break
+        # Step 5:
+            # Check if the order is pending
+            # If so, replace the order. 
+                    while True:
+                        time.sleep(15)
+                        # If position_type is None, then the order is pending
+                        if self.position_type() is None:
+                            self.replace_position('CALL')
+                        # Else the order was palced and we can exit
+                        else:
+                            break
+
                     self.calculate_remaining_balance()
+        # Step 6:
+            # Check the market value of contract for profit/loss
+            # If a profit or loss has reached then sell it. 
                     self.check_position('CALL')
                     
                 self.signals.reset_position()
@@ -125,14 +155,16 @@ class Client:
             dict or None: A dictionary representing the best contract order, or None if no suitable contract is found.
         """
         try:
-            options = self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today)
-            strike_price_df = self.create_dataframe(options)
+            strike_price_df = self.create_dataframe(self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today))
             filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
+            # If contract is a Put, reverse the df
             if type == 'PUT':
                 filtered_ask_result = filtered_ask_result[::-1]
 
+            # RAISE EXCEPTION: If there is no contract
             contract = filtered_ask_result.iloc[0]
+
             buy_order = self.create_order(contract.get('Ask'), contract.get('Symbol'), 'BUY')
             return buy_order
         except IndexError:
@@ -155,7 +187,7 @@ class Client:
             self.schwab.post_orders(order, accountNumber=hash).json()
         except json.decoder.JSONDecodeError:
             print("Bought contract!!")
-            pass
+            # I could possibly wait it here until the order is activated
 
 
     def sell_position(self):
@@ -172,6 +204,7 @@ class Client:
             hash = self.schwab.account_numbers()[0].get('hashValue')
             open_position = self.schwab.account_number(hash, "positions")
 
+            # RASIE EXCEPTION: If there are no open positions, exit.
             market_value = open_position["securitiesAccount"]["positions"][0]["marketValue"] / 100
             symbol = open_position["securitiesAccount"]["positions"][0]["instrument"]["symbol"] 
 
@@ -179,10 +212,30 @@ class Client:
             self.schwab.post_orders(sell_order, accountNumber=hash).json()
         except json.decoder.JSONDecodeError:
             print("SOLD CONTRACT!!")
-            pass
         except KeyError as e:
             return
         
+
+    def replace_position(self, type):
+        
+        try:
+            hash = self.schwab.account_numbers()[0].get('hashValue')
+            account_orders = self.schwab.account_orders(maxResults=5, fromEnteredTime=order_date(), toEnteredTime=self.tomorrow, accountNumber=hash, status="PENDING_ACTIVATION")
+            
+            # RAISE EXCEPTION: If the list is empty
+            # This means the Pending order was executed successfully.
+            orderId = account_orders[0].get('orderId')
+            
+            order_replacement = self.best_contract(type)
+
+            if order_replacement is None:
+                return
+            
+            self.schwab.order_replace(self, accountNumber=hash, orderId=orderId, order=order_replacement)
+        except IndexError:
+            print("Order is placed, cancel replacement")
+
+    
 
     def check_position(self, type):
         """
@@ -201,6 +254,8 @@ class Client:
                 hash = self.schwab.account_numbers()[0].get('hashValue')
                 
                 open_position = self.schwab.account_number(hash, "positions")
+
+                # RASIE EXCEPTION: If theres no longer an open position
                 profit_loss_percentage = float(open_position["securitiesAccount"]["positions"][0]["currentDayProfitLossPercentage"])
                 profit_loss_value = int(open_position["securitiesAccount"]["positions"][0]["currentDayProfitLoss"])
 
@@ -212,7 +267,7 @@ class Client:
                     print(f"Current Contracts Profit/Loss: {profit_loss_value}")
                     print("")
                 time.sleep(1) 
-        except KeyError as e:
+        except KeyError:
             return
 
 
@@ -290,14 +345,18 @@ class Client:
         try:
             hash = self.schwab.account_numbers()[0].get('hashValue')
             order = self.schwab.account_number(hash, "positions")
+
+            # RASIE EXCEPTION: If there are no open positions
             symbol = order["securitiesAccount"]["positions"][0]["instrument"]["symbol"]
+
             type = symbol[12:13]
             if type == 'C':
                 self.signals.set_current_position('CALL')
             elif type == 'P':
                 self.signals.set_current_position('PUT')
-        except KeyError as e:
-            self.signals.reset_position()
+        except KeyError:
+            # self.signals.reset_position()
+            self.signals.set_current_position(None)
    
         return self.signals.get_current_position()  
         
@@ -321,22 +380,6 @@ class Client:
         total_cash = account_info["securitiesAccount"]["currentBalances"]["totalCash"]
         
         return total_cash 
-    
-
-    def convert_epoch_to_datetime(self, candles):
-        """
-        Convert epoch timestamps in candle data to human-readable datetime strings.
-
-        Args:
-            candles (list): A list of candle data dictionaries.
-
-        Returns:
-            None
-        """
-        for candle in candles:
-            epoch = candle["datetime"]
-            dt = datetime.fromtimestamp(epoch / 1000.0)
-            candle["datetime"] = dt.strftime('%Y-%m-%d %H:%M:%S')
 
 
     def is_enough_funds(self):
