@@ -71,7 +71,7 @@ class Client:
                 put_contract = self.best_contract('PUT')
                 print("Step 2")
                 if put_contract is not None:
-                    self.buy_position(put_contract, 'PUT')
+                    self.buy_position(put_contract)
                     print("Step 3")
                     max_attempts = 0
                     while max_attempts < 4:
@@ -114,7 +114,7 @@ class Client:
                 call_contract = self.best_contract('CALL')
 
                 if call_contract is not None:
-                    self.buy_position(call_contract, 'CALL')
+                    self.buy_position(call_contract)
 
                     max_attempts = 0
                     while max_attempts < 4:
