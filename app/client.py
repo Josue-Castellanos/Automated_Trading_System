@@ -63,16 +63,16 @@ class Client:
             self.signals.get_put_event().wait()
 
             open_position = self.signals.get_current_position()
-
+            print("Step 1")
             if open_position != 'PUT' and self.is_enough_funds():
                 if open_position == 'CALL':
                     self.sell_position()
 
                 put_contract = self.best_contract('PUT')
-
+                print("Step 2")
                 if put_contract is not None:
                     self.buy_position(put_contract, 'PUT')
-
+                    print("Step 3")
                     max_attempts = 0
                     while max_attempts < 4:
                         time.sleep(15)
