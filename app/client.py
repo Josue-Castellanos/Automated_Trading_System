@@ -70,16 +70,7 @@ class Client:
                 put_contract = self.best_contract('PUT')
 
                 if put_contract is not None:
-                    self.buy_position(put_contract, 'PUT')
-                    max_attempts = 0
-                    while max_attempts < 4:
-                        time.sleep(15)
-                        if self.position_type() is None:
-                            self.replace_position('PUT')
-                        else:
-                            break
-                        max_attempts += 1
-                    
+                    self.buy_position(put_contract, 'PUT')    
                     self.calculate_remaining_balance()
                     self.check_position('PUT')
                     
@@ -251,6 +242,8 @@ class Client:
             return
         try:                
             while True:
+                time.sleep(1) 
+
                 hash = self.schwab.account_numbers()[0].get('hashValue')
                 
                 open_position = self.schwab.account_number(hash, "positions")
@@ -265,8 +258,6 @@ class Client:
                     print(f"Current Contracts Percentage: {profit_loss_percentage}%")
                     print(f"Current Contracts Profit/Loss: {profit_loss_value}")
                     print("")
-
-                time.sleep(1) 
         except KeyError:
             return
 
