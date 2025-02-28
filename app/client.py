@@ -64,6 +64,8 @@ class Client:
 
             open_position = self.signals.get_current_position()
             print("Step 1")
+            # The worst part is to make a big trade, and lose it all in another trade.
+            # So in this case, if I am want to keep my gains the best thing to do is to shut down the client after I reached the daily goal right?
             if open_position != 'PUT' and self.is_enough_funds():
                 if open_position == 'CALL':
                     self.sell_position()
@@ -75,7 +77,7 @@ class Client:
                     print("Step 3")
                     max_attempts = 0
                     while max_attempts < 4:
-                        time.sleep(15)
+                        time.sleep(10)
                         # If position_type is None, then the order is pending
                         if self.position_type() is None:
                             self.replace_position('PUT')
@@ -83,7 +85,7 @@ class Client:
                         else:
                             break
                         max_attempts += 1
-
+                    self.signals.set_current_position('PUT')
                     self.calculate_remaining_balance()
                     self.check_position('PUT')
                     
@@ -118,7 +120,7 @@ class Client:
 
                     max_attempts = 0
                     while max_attempts < 4:
-                        time.sleep(15)
+                        time.sleep(10)
                         # If position_type is None, then the order is pending
                         if self.position_type() is None:
                             self.replace_position('CALL')
@@ -149,7 +151,7 @@ class Client:
             dict or None: A dictionary representing the best contract order, or None if no suitable contract is found.
         """
         try:
-            options = self.schwab.get_chains('SPY', type, '7', 'TRUE', '', '', '', 'OTM', self.today, self.today)
+            options = self.schwab.get_chains('SPY', type, '10', 'TRUE', '', '', '', 'OTM', self.today, self.today)
             strike_price_df = self.create_dataframe(options)
             filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
