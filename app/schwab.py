@@ -1,5 +1,6 @@
 import json
 import requests
+from datetime import datetime
 import sys
 sys.path.append("/home/ubuntu/Automated_Trading_System")
 from app.config import Settings
@@ -13,7 +14,6 @@ class Schwab():
         
         This constructor sets up the necessary attributes and performs initial checks.
         """
-        # self.stream = Stream(self)
         self.timeout = 5
         self.settings = Settings()
 
@@ -54,6 +54,8 @@ class Schwab():
             int or str or None: The converted datetime, or None if input is None.
         """
         if format == "epoch" and dt is not None:
+            if isinstance(dt, str):  # Convert string to datetime if necessary
+                dt = datetime.fromisoformat(dt)  # Assumes `dt` is in 'YYYY-MM-DD' format
             return int(dt.timestamp() * 1000)
         elif format == "iso" and dt is not None:
             return dt + 'T00:00:00.000Z'

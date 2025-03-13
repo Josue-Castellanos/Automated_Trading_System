@@ -1,10 +1,10 @@
 import ssl
 import email
-import sys
 import threading
 from datetime import datetime, time
 from email.header import decode_header
 from imapclient import IMAPClient
+import sys
 sys.path.append("/home/ubuntu/Automated_Trading_System")
 from app.config import Settings
 
@@ -37,20 +37,24 @@ class Signals():
         signal_type = subject[33:39].upper()
 
         if self.is_smart_money():
-            print(f"Received {signal_type} Alert: Smart money, we wait.")
-            return
+            print(f"RECEIVED {signal_type} Alert: SMART MONEY, WE WAIT.")
         
         elif signal_type in CALL_SIGNAL_TYPES:
-            print(f"Received CALL signal: {signal_type}")
+            print(f"RECEIVED CALL AlERT: {signal_type}")
             if self.current_position != 'CALL' and not self.CALLEVENT.is_set():
                 self.CALLEVENT.set()
                 self.PUTEVENT.clear()
+            else:
+                print("ALREADY IN CALL, PASS ALERT!")
 
         elif signal_type in PUT_SIGNAL_TYPES:
-            print(f"Received PUT signal: {signal_type}")
+            print(f"RECEIVED PUT ALERT: {signal_type}")
             if self.current_position != 'PUT' and not self.PUTEVENT.is_set():
                 self.PUTEVENT.set()
                 self.CALLEVENT.clear()
+            else:
+                print("ALREADY IN PUT, PASS ALERT!")
+
 
 
     def idle_monitor(self):

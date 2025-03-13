@@ -2,6 +2,8 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,osx,windows,jsonnet,dotenv
 # Edited by Josue Castellanos
 
+### csv ###
+*.csv
 
 ### yaml ###
 *.yaml
