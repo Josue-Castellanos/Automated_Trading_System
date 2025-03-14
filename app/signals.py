@@ -41,19 +41,22 @@ class Signals():
         
         elif signal_type in CALL_SIGNAL_TYPES:
             print(f"RECEIVED CALL AlERT: {signal_type}")
+
             if self.current_position != 'CALL' and not self.CALLEVENT.is_set():
+                self.set_current_position('CALL')
                 self.CALLEVENT.set()
                 self.PUTEVENT.clear()
             else:
-                print("ALREADY IN CALL, PASS ALERT!")
+                print("ALREADY IN CALL EVENT, PASS ALERT!")
 
         elif signal_type in PUT_SIGNAL_TYPES:
             print(f"RECEIVED PUT ALERT: {signal_type}")
             if self.current_position != 'PUT' and not self.PUTEVENT.is_set():
+                self.set_current_position('PUT')
                 self.PUTEVENT.set()
                 self.CALLEVENT.clear()
             else:
-                print("ALREADY IN PUT, PASS ALERT!")
+                print("ALREADY IN PUT EVENT, PASS ALERT!")
 
 
 

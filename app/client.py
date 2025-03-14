@@ -76,9 +76,8 @@ class Client:
             current_position = self.signals.get_current_position()
 
             # Here we will use the Momentum chain, checking funds, and current position.
-            if current_position != 'PUT' and self.check_momentum_chain in self.momentum_put_colors:
-                if current_position == 'CALL':
-                    self.sell_position()
+            if current_position == 'PUT' and self.check_momentum_chain in self.momentum_put_colors:
+                self.sell_position()
 
                 if self.is_enough_funds():
                     put_contract = self.best_contract('PUT')
@@ -113,9 +112,10 @@ class Client:
             current_position = self.signals.get_current_position()
 
             # Here we will use the Momentum chain, checking funds, and current position.
-            if current_position != 'CALL' and self.check_momentum_chain in self.momentum_call_colors:
-                if current_position == 'PUT':
-                    self.sell_position()
+            if current_position == 'CALL' and self.check_momentum_chain in self.momentum_call_colors:
+                self.sell_position()
+
+                self.signals.set_current_position('CALL')
 
                 if self.is_enough_funds():
                     call_contract = self.best_contract('CALL')
@@ -240,7 +240,7 @@ class Client:
         finally:
             max_attempts = 0
             while True:
-                time.sleep(5)
+                time.sleep(8)
                 if self.position_type() is None:
                     print("CONTRACT SOLD!")
                     break
@@ -346,7 +346,7 @@ class Client:
             return
 
 
-    def check_momentum_chain(self):
+    def check_momentum_chain(self, count=1):
         """
         
         """
@@ -354,7 +354,7 @@ class Client:
 
         momentum_data = ttm_squeeze_momentum(data)
 
-        color = momentum_data['color'].iloc[-1]
+        color = momentum_data['color'].iloc[-count]
 
         return color
     
