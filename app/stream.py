@@ -169,8 +169,6 @@ def _aggregate_five_minute_candle(stream):
 
     # Clear stored 1-minute candles
     stream.one_minute_data.clear()
-
-
 # def _aggregate_fifteen_minute_candle(stream):
 #     return
 # def _aggregate_thirty_minute_candle(stream):
@@ -179,16 +177,20 @@ def _aggregate_five_minute_candle(stream):
 #     return
 
 
-# Initialize trading stream
-schwab = Schwab()
-streamer_info = schwab.preferences().get('streamerInfo', None)[0]
-df = stream_price_data(schwab, 'SPY', datetime.now(), datetime.now())
 
-stream = Stream(streamer_info)
-stream.set_dataframe(df)
 
-# Start stream with new data processing function
-async def data_in_df(data, *args):
-    await process_data(data, stream)
 
-stream.start(data_in_df)
+
+# # Initialize trading stream
+# schwab = Schwab()
+# streamer_info = schwab.preferences().get('streamerInfo', None)[0]
+# df = stream_price_data(schwab, 'SPY', datetime.now(), datetime.now())
+
+# stream = Stream(streamer_info)
+# stream.set_dataframe(df)
+
+# # Start stream with new data processing function
+# async def data_in_df(data, *args):
+#     await process_data(data, stream)
+
+# stream.start(data_in_df)
