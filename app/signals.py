@@ -41,7 +41,6 @@ class Signals():
         
         elif signal_type in CALL_SIGNAL_TYPES:
             print(f"RECEIVED CALL AlERT: {signal_type}")
-
             if self.current_position != 'CALL' and not self.CALLEVENT.is_set():
                 self.set_current_position('CALL')
                 self.CALLEVENT.set()
@@ -75,7 +74,6 @@ class Signals():
             try:
                 # ADD is_Market_Open() here instead of True
                 while self.is_market_open():
-                    # print("Waiting for new emails...")
                     client.idle()  # Start IDLE mode
                     client.idle_done()  # Stops IDLE mode when the client receives an email
                     self.check_new_emails(client)

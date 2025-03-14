@@ -115,8 +115,6 @@ class Client:
             if current_position == 'CALL' and self.check_momentum_chain in self.momentum_call_colors:
                 self.sell_position()
 
-                self.signals.set_current_position('CALL')
-
                 if self.is_enough_funds():
                     call_contract = self.best_contract('CALL')
                     if call_contract is None:
@@ -638,14 +636,29 @@ class Client:
         df = self.sheet.read_sheet()
         row = df[df['Date'] == self.now]
 
-        # This is something I can check to see If I had  Green or red day
-        self.set_day(int(row.iloc[0]['Day']))      
+        # The Row # in excel sheet]
+        self.set_day(int(row.iloc[0]['Day']))
+
+        # The Daily trade goal per trade
         self.set_daily_goal(int(row.iloc[0]['Adj$Gain'][1:]))
+
+        # The Daily account goal by eod
         self.set_adjusted_balance(int(row.iloc[0]['Adj$Balance'][1:]))
+
+        # The
         self.set_position_size(int(row.iloc[0]['Pos#Open']))
+
+        # T
+        # self.set_total_risk(int(row.iloc[0]['Tot$Risk']))
+
+        # T
         self.set_profit_percentage(float(row.iloc[0]['Pos%Tgt'][:-1]))
+
+        # T
         # self.set_contract_price(float(row.iloc[0]['Pos$Size'][1:]))
-        self.set_contract_price(float(50.0))
+        self.set_contract_price(float(50.0))        # TEMPORARY
+
+        # T
         self.set_balance(self.total_cash())
     
 
