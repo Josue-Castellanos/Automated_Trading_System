@@ -36,6 +36,8 @@ def ttm_squeeze_momentum(data, length=20, nBB=2.0, nK_Mid=1.5, nK_Low=1.0, nK_Hi
 def _filter_market_hours(data, market_open="06:30", market_close="13:00", last_n=79):
     """Filter data for market hours and keep the last N records."""
     # Ensure the index is converted to datetime format
+    # This causes an error:
+        #UserWarning: Could not infer format, so each element will be parsed individually, falling back to `dateutil`. To ensure parsing is consistent and as-expected, please specify a format.
     if not isinstance(data.index, pd.DatetimeIndex):
         data.index = pd.to_datetime(data.index)  # Convert index to datetime
 

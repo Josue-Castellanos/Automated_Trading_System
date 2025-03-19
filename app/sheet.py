@@ -2,7 +2,7 @@
 import pandas as pd
 from datetime import datetime
 import sys
-sys.path.append("/Users/josuecastellanos/Documents/Automated_Trading_System")
+sys.path.append("/home/ubuntu/Automated_Trading_System")
 from app.config import Settings
 from googleapiclient.discovery import build
 from google.oauth2 import service_account

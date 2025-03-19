@@ -1,7 +1,8 @@
 import yfinance as yf
 import pandas as pd
 import sys
-sys.path.append("/home/ubuntu/Automated_Trading_System")
+# sys.path.append("/home/ubuntu/Automated_Trading_System")
+sys.path.append("/Users/josuecastellanos/Documents/Automated_Trading_System")
 from app.utils import dates
 from datetime import datetime
 

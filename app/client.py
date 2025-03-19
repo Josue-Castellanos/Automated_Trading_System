@@ -1,4 +1,3 @@
-from crypt import methods
 import json
 import threading
 import time
@@ -44,7 +43,6 @@ class Client:
         self.momentum_put_colors = ['purple', 'magenta']
 
         self.hash = None
-        self.momentum = None
 
         self.fetch_hash()
         self.set_settings()
@@ -73,27 +71,34 @@ class Client:
         """
         while True:
             self.signals.get_put_event().wait()
-            current_position = self.signals.get_current_position()
 
+            print("Step 1: CHECK MOMENTUM")
             # Here we will use the Momentum chain, checking funds, and current position.
-            if current_position == 'PUT' and self.check_momentum_chain in self.momentum_put_colors:
+            if self.check_momentum_chain() in self.momentum_put_colors:
+                print("Step 2: SELL ANY ACTIVE POSITIONS")
                 self.sell_position()
-
+                print("Step 3: CHECK FOR SUFFICIENT FUNDS")
                 if self.is_enough_funds():
+                    print("Step 4: SELECT BEST CONTRACT")
                     put_contract = self.best_contract('PUT')
                     if put_contract is None:
                         pass
                     else:
+                        print("Step 5: ENTER POSITION")
                         response = self.buy_position(put_contract, 'PUT')
                         if response is None:
                             pass
                         else:
+                            print("Step 6: CHECK POSITION")
                             self.check_position('PUT')
                 else:
+                    print("ERROR: INSUFFICIENT FUNDS!")
                     pass
-                self.signals.reset_position()
             else:
+                print("ERROR: MOMENTUM DOES NOT MATCH WITH ALERT!")
                 pass
+            print("Step 7: RESET CURRENT POSITION AND CLEAR EVENT")
+            self.signals.reset_position()
             self.signals.get_put_event().clear()
 
 
@@ -109,27 +114,34 @@ class Client:
         """
         while True:
             self.signals.get_call_event().wait()
-            current_position = self.signals.get_current_position()
 
+            print("Step 1: CHECK MOMENTUM")
             # Here we will use the Momentum chain, checking funds, and current position.
-            if current_position == 'CALL' and self.check_momentum_chain in self.momentum_call_colors:
+            if self.check_momentum_chain() in self.momentum_call_colors:
+                print("\nStep 2: SELL ANY ACTIVE POSITIONS")
                 self.sell_position()
-
+                print("\nStep 3: CHECK FOR SUFFICIENT FUNDS")
                 if self.is_enough_funds():
+                    print("\nStep 4: SELECT BEST CONTRACT")
                     call_contract = self.best_contract('CALL')
                     if call_contract is None:
                         pass
                     else:
+                        print("\nStep 5: ENTER POSITION")
                         response = self.buy_position(call_contract, 'CALL')
                         if response is None:
                             pass
                         else:
+                            print("\nStep 6: CHECK POSITION")
                             self.check_position('CALL')
                 else:
+                    print("ERROR: INSUFFICIENT FUNDS!")
                     pass
-                self.signals.reset_position()
             else:
+                print("ERROR: MOMENTUM DOES NOT MATCH WITH ALERT!!")
                 pass
+            print("\nStep 7: RESET CURRENT POSITION AND CLEAR EVENT")
+            self.signals.reset_position()
             self.signals.get_call_event().clear()
 
 
@@ -157,8 +169,8 @@ class Client:
 
             # RAISE EXCEPTION: If dataframe is empty
             contract = filtered_ask_result.iloc[0]
-
             print("BEST CONTRACT FOUND!")
+
             return contract
         except IndexError:
             print("NO SUITABLE CONTRACT FOUND.")
@@ -188,20 +200,20 @@ class Client:
         finally:
             max_attempts = 0
             while max_attempts < 4:
-                time.sleep(10)
+                time.sleep(8)
                 if self.position_type() is None:
+                    print(f"BUY ORDER REPLACEMENT: {max_attempts + 1}.")
                     self.replace_position(order_type=type)
-                    print(f"BUY ORDER REPLACED: {max_attempts + 1}.")
                 else:
                     print("CONTRACT BOUGHT!")
                     self.calculate_remaining_balance()
                     return "BOUGHT"
                 max_attempts += 1
 
+            print("CONTRACT CANNOT BE BOUGHT, TOO MUCH VOLATILITY!")
             self.delete_pending_position()
             print("BUY ORDER CANCELLED.")
 
-            print("CONTRACT CANNOT BE BOUGHT, TOO MUCH VOLATILITY!")
             return None
 
 
@@ -218,7 +230,7 @@ class Client:
         try:
             open_position = self.schwab.account_number(self.hash, "positions")
 
-            # RASIE EXCEPTION: If there are no open positions, exit.
+            # RASIE KEY EXCEPTION: If there are no open positions, exit.
             print("SEARCHING FOR ACTIVE CONTRACTS...")
             market_value = open_position["securitiesAccount"]["positions"][0]["marketValue"] / 100
             symbol = open_position["securitiesAccount"]["positions"][0]["instrument"]["symbol"] 
@@ -231,51 +243,70 @@ class Client:
             print("POSTING SELL ORDER...")
             self.schwab.post_orders(sell_order, accountNumber=self.hash).json()
         except json.decoder.JSONDecodeError:
-            print("SELL ORDER POSTED, PENDING CONFIRMATION...")
+            print("SELL ORDER POSTED, PENDING ACTIVATION...")
         except KeyError:
             print("NO ACTIVE CONTRACTS FOUND TO SELL.")
-            return
-        finally:
-            max_attempts = 0
-            while True:
-                time.sleep(8)
-                if self.position_type() is None:
-                    print("CONTRACT SOLD!")
-                    break
-                else:
-                    self.replace_position(status='SELL')
-                    print(f"SELL ORDER REPLACED: {max_attempts + 1}.")
-                max_attempts += 1
+            return 
+        max_attempts = 0
+        while True:
+            time.sleep(15)
+            if self.position_type() is None:
+                print("CONTRACT SOLD!")
+                break
+            else:
+                print(f"ERROR: ORDER REPLACEMENT: {max_attempts + 1}.")
+                self.replace_position(status='SELL')
+            max_attempts += 1
         
 
-    def replace_position(self, order_type=None, status=None):
+    def replace_position(self, order_type=None, order_status=None):
         """
         
         """
         try:
-            account_orders = self.schwab.account_orders(maxResults=5, fromEnteredTime=order_date(), toEnteredTime=self.tomorrow, accountNumber=self.hash, status="PENDING_ACTIVATION")
-            
-            # RAISE INDEX EXCEPTION: The pending order was executed If the list is empty
-            orderId = account_orders[0].get('orderId')
-            
-            if status == 'SELL':
-                open_position = self.schwab.account_number(self.hash, "positions")
+            if order_status == 'SELL':
+                print("SEARCHING FOR PENDING ACTIVATION ORDERS...")
+                account_orders = self.schwab.account_orders(maxResults=1, fromEnteredTime=order_date(), toEnteredTime=self.tomorrow, accountNumber=self.hash, status="WORKING")
+                order = account_orders[0]    # RAISE INDEX EXCEPTION
+                print("PENDING ACTIVATION ORDER FOUND!")
 
-                # RASIE KEY EXCEPTION: If there are no open positions, exit.
-                market_value = open_position["securitiesAccount"]["positions"][0]["marketValue"] / 100
-                symbol = open_position["securitiesAccount"]["positions"][0]["instrument"]["symbol"] 
+                print("EXTRACTING ID FROM PENDING ORDER...")
+                orderId = order.get('orderId')  
 
+                print("NOW SEARCHING FOR ACTIVE CONTRACTS...")
+                open_positions = self.schwab.account_number(self.hash, "positions")
+                active_contract = open_positions["securitiesAccount"]["positions"][0]         # RASIE KEY EXCEPTION - ["positions"]
+                print("ACTIVE CONTRACT FOUND!")
+
+                print("EXTRACTING MARKET VALUE...")
+                market_value = active_contract["marketValue"] / 100          
+
+                symbol = active_contract["instrument"]["symbol"]
+                print("CREATING A NEW SELL ORDER...")
                 order_replacement = self.create_order(round(market_value, 2), symbol, 'SELL')
+
             else:
+                # There might be an issue here where it would require a different status to retrieve a pending sell order.
+                print("SEARCHING FOR PENDING ACTIVATION ORDERS...")
+                account_orders = self.schwab.account_orders(maxResults=5, fromEnteredTime=order_date(), toEnteredTime=self.tomorrow, accountNumber=self.hash, status="PENDING_ACTIVATION")
+                # RAISE INDEX EXCEPTION: The pending order was executed If the list is empty
+                orderId = account_orders[0].get('orderId')
+                print("PENDING ACTIVATION ORDER FOUND!")
+
                 order_replacement = self.best_contract(order_type)
 
-            if order_replacement is None:
-                return
-            
+                if order_replacement is None:
+                    return
+            print("POSTING REPLACEMNT ORDER...")  
             self.schwab.order_replace(self, accountNumber=self.hash, orderId=orderId, order=order_replacement)
-        except IndexError or KeyError:
-            print("PENDING ORDER WAS ACCEPTED, CANCEL REPLACMENT.")
-            return 
+        except json.decoder.JSONDecodeError:
+            print("REPLACEMENT ORDER POSTED, PENDING ACTIVATION...")
+        except IndexError:
+            print("PENDING ACTIVATION ORDER IS ACTIVE, CANCEL REPLACMENT.")
+            return
+        except KeyError:
+            print("NO ACTIVE CONTRACT FOUND!")
+            return
 
 
     def delete_pending_position(self):
@@ -288,6 +319,8 @@ class Client:
             # RAISE INDEX EXCEPTION: The pending order was executed If the list is empty
             orderId = account_orders[0].get('orderId')
             self.schwab.delete_order_id(orderId, self.hash)
+        except json.decoder.JSONDecodeError:
+            print("PENDING ORDER DELETED.")
         except IndexError:
             print("PENDING ORDER WAS ACCEPTED, CANCEL DELETE.")
             return
@@ -321,24 +354,31 @@ class Client:
 
                 # STOP LOSS
                 if profit_loss_percentage <= self.loss_percentage:
+                    print("STOPLOSS TRIGGERED: SELL!")
                     self.sell_position()
                     break
                 
                 elif profit_loss_value >= self.daily_goal:
                     if type == 'CALL':
-                        if self.check_momentum_chain in self.momentum_call_colors:
+                        if self.check_momentum_chain(count=2) in self.momentum_call_colors:
+                            print("MOVING WITH MOMENTUM: HOLD!")
                             continue
                         else: 
+                            print("LOSING MOMENTUM: SELL!")
                             self.sell_position()
                             break
                     elif type == 'PUT':
-                        if self.check_momentum_chain in self.momentum_put_colors:
+                        if self.check_momentum_chain(count=2) in self.momentum_put_colors:
+                            print("MOVING WITH MOMENTUM: HOLD!")
                             continue
                         else:
+                            print("LOSING MOMENTUM: SELL!")
                             self.sell_position()
                             break
+                    else:
+                        pass
                 else: 
-                    continue
+                    pass
         except KeyError:
             print("CONTRACT WAS SOLD BY USER ON TOS")
             return
@@ -349,10 +389,8 @@ class Client:
         
         """
         data = self.fetch_price_data()
-
-        momentum_data = ttm_squeeze_momentum(data)
-
-        color = momentum_data['color'].iloc[-count]
+        data = ttm_squeeze_momentum(data)
+        color = data['color'].iloc[-count]
 
         return color
     
@@ -636,7 +674,7 @@ class Client:
         df = self.sheet.read_sheet()
         row = df[df['Date'] == self.now]
 
-        # The Row # in excel sheet]
+        # The Row # in excel sheet
         self.set_day(int(row.iloc[0]['Day']))
 
         # The Daily trade goal per trade
@@ -645,20 +683,21 @@ class Client:
         # The Daily account goal by eod
         self.set_adjusted_balance(int(row.iloc[0]['Adj$Balance'][1:]))
 
-        # The
-        self.set_position_size(int(row.iloc[0]['Pos#Open']))
+        # The Number of Contracts Per Trade
+        # self.set_position_size(int(row.iloc[0]['Pos#Open']))
+        self.set_position_size(int(1))              # TEMPORARY
 
-        # T
+        # The Total monye value of my risk above
         # self.set_total_risk(int(row.iloc[0]['Tot$Risk']))
 
-        # T
+        # The Percentage Goal For Each Trade
         self.set_profit_percentage(float(row.iloc[0]['Pos%Tgt'][:-1]))
 
-        # T
+        # The Contract Price
         # self.set_contract_price(float(row.iloc[0]['Pos$Size'][1:]))
-        self.set_contract_price(float(50.0))        # TEMPORARY
+        self.set_contract_price(float(60.0))        # TEMPORARY
 
-        # T
+        # The Current Account Balance
         self.set_balance(self.total_cash())
     
 

@@ -339,7 +339,8 @@ class Schwab():
                     REPLACED, 
                     FILLED, 
                     EXPIRED,
-                    NEW, AWAITING_RELEASE_TIME, 
+                    NEW, 
+                    AWAITING_RELEASE_TIME, 
                     PENDING_ACKNOWLEDGEMENT, 
                     PENDING_RECALL, 
                     UNKNOWN

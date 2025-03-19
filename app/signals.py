@@ -36,26 +36,26 @@ class Signals():
 
         signal_type = subject[33:39].upper()
 
-        if self.is_smart_money():
-            print(f"RECEIVED {signal_type} Alert: SMART MONEY, WE WAIT.")
+        # if self.is_smart_money():
+        #     print(f"RECEIVED {signal_type} Alert: SMART MONEY, WE WAIT.\n")
         
-        elif signal_type in CALL_SIGNAL_TYPES:
-            print(f"RECEIVED CALL AlERT: {signal_type}")
+        if signal_type in CALL_SIGNAL_TYPES:
+            print(f"RECEIVED CALL AlERT: {signal_type}\n")
             if self.current_position != 'CALL' and not self.CALLEVENT.is_set():
                 self.set_current_position('CALL')
                 self.CALLEVENT.set()
                 self.PUTEVENT.clear()
             else:
-                print("ALREADY IN CALL EVENT, PASS ALERT!")
+                print("ALREADY IN CALL EVENT, PASS ALERT!\n")
 
         elif signal_type in PUT_SIGNAL_TYPES:
-            print(f"RECEIVED PUT ALERT: {signal_type}")
+            print(f"RECEIVED PUT ALERT: {signal_type}\n")
             if self.current_position != 'PUT' and not self.PUTEVENT.is_set():
                 self.set_current_position('PUT')
                 self.PUTEVENT.set()
                 self.CALLEVENT.clear()
             else:
-                print("ALREADY IN PUT EVENT, PASS ALERT!")
+                print("ALREADY IN PUT EVENT, PASS ALERT!\n")
 
 
 
