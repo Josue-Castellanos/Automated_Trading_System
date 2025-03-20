@@ -97,7 +97,7 @@ class Client:
             else:
                 print("ERROR: MOMENTUM DOES NOT MATCH WITH ALERT!")
                 pass
-            print("Step 7: RESET CURRENT POSITION AND CLEAR EVENT")
+            print("Step 7: RESET CURRENT POSITION AND CLEAR EVENT\n")
             self.signals.reset_position()
             self.signals.get_put_event().clear()
 
@@ -344,9 +344,10 @@ class Client:
                 time.sleep(2)                 
                 open_position = self.schwab.account_number(self.hash, "positions")
 
-                # RASIE EXCEPTION: If list is empty
-                profit_loss_percentage = float(open_position["securitiesAccount"]["positions"][0]["currentDayProfitLossPercentage"])
-                profit_loss_value = int(open_position["securitiesAccount"]["positions"][0]["currentDayProfitLoss"])
+                # RASIE KEY EXCEPTION: If list is empty
+                active_positions = open_position["securitiesAccount"]["positions"]
+                profit_loss_percentage = float(active_positions[0]["currentDayProfitLossPercentage"])
+                profit_loss_value = int(active_positions[0]["currentDayProfitLoss"])
                 
                 print("UPDATE:")
                 print(f"Contracts Percentage: {profit_loss_percentage}%")
@@ -356,7 +357,7 @@ class Client:
                 if profit_loss_percentage <= self.loss_percentage:
                     print("STOPLOSS TRIGGERED: SELL!")
                     self.sell_position()
-                    break
+                    continue
                 
                 elif profit_loss_value >= self.daily_goal:
                     if type == 'CALL':
@@ -366,7 +367,7 @@ class Client:
                         else: 
                             print("LOSING MOMENTUM: SELL!")
                             self.sell_position()
-                            break
+                            continue
                     elif type == 'PUT':
                         if self.check_momentum_chain(count=2) in self.momentum_put_colors:
                             print("MOVING WITH MOMENTUM: HOLD!")
@@ -374,13 +375,13 @@ class Client:
                         else:
                             print("LOSING MOMENTUM: SELL!")
                             self.sell_position()
-                            break
+                            continue
                     else:
                         pass
                 else: 
                     pass
         except KeyError:
-            print("CONTRACT WAS SOLD BY USER ON TOS")
+            print("CONTRACT WAS SOLD!")
             return
 
 
