@@ -1,6 +1,7 @@
 import json
 import threading
 import time
+import math
 import pandas as pd
 from schwab import Schwab
 from sheet import Sheet
@@ -34,6 +35,7 @@ class Client:
         self.loss_percentage = float(-50.00)              
         self.goal_percentage = float(100.00)
         self.position_size = None
+        self.total_risk = None
         self.profit_percentage = None
         self.contract_price = None
         self.adjusted_balance = None
@@ -255,7 +257,7 @@ class Client:
                 break
             else:
                 print(f"ERROR: ORDER REPLACEMENT: {max_attempts + 1}.")
-                self.replace_position(status='SELL')
+                self.replace_position(order_status='SELL')
             max_attempts += 1
         
 
@@ -361,7 +363,7 @@ class Client:
                 
                 elif profit_loss_value >= self.daily_goal:
                     if type == 'CALL':
-                        if self.check_momentum_chain(count=2) in self.momentum_call_colors:
+                        if self.check_momentum_chain(count=1) in self.momentum_call_colors:
                             print("MOVING WITH MOMENTUM: HOLD!")
                             continue
                         else: 
@@ -369,7 +371,7 @@ class Client:
                             self.sell_position()
                             continue
                     elif type == 'PUT':
-                        if self.check_momentum_chain(count=2) in self.momentum_put_colors:
+                        if self.check_momentum_chain(count=1) in self.momentum_put_colors:
                             print("MOVING WITH MOMENTUM: HOLD!")
                             continue
                         else:
@@ -536,7 +538,7 @@ class Client:
             return None
            
 
-    def total_cash(self):
+    def get_total_cash(self):
         """
         Retrieve the total cash balance of the account.
 
@@ -562,6 +564,7 @@ class Client:
         
         """
         self.balance = self.balance - (self.contract_price * self.position_size)
+
 
 # *****************************************************************************************************************
 # ************************************************ SETTERS ********************************************************
@@ -599,6 +602,13 @@ class Client:
         self.daily_goal = daily_goal
 
 
+    def set_total_risk(self, total_risk):
+        """
+        
+        """
+        self.total_risk = total_risk
+
+
     def set_adjusted_balance(self, adjusted_balance):
         """
         Set the adjusted account balance.
@@ -622,7 +632,9 @@ class Client:
         Returns:
             None
         """
-        self.position_size = size
+        position_size = math.ceil(self.total_risk / 50)
+
+        self.position_size = position_size
 
 
     def set_profit_percentage(self, profit_percentage):
@@ -638,7 +650,7 @@ class Client:
         self.profit_percentage = profit_percentage
 
 
-    def set_contract_price(self, contract_price):
+    def set_contract_price(self, price):
         """
         Set the maximum contract price.
 
@@ -648,6 +660,7 @@ class Client:
         Returns:
             None
         """
+        contract_price = 55.0
         self.contract_price = contract_price / 100
     
 
@@ -665,6 +678,8 @@ class Client:
             await process_data(data, self.stream)
 
         self.stream.start(data_in_df)
+
+
 # ******************************************************************************************************************
 # ************************************************ SETTINGS ********************************************************
 # ******************************************************************************************************************
@@ -678,29 +693,27 @@ class Client:
         # The Row # in excel sheet
         self.set_day(int(row.iloc[0]['Day']))
 
-        # The Daily trade goal per trade
+        # The Daily profit goal per trade
         self.set_daily_goal(int(row.iloc[0]['Adj$Gain'][1:]))
 
-        # The Daily account goal by eod
+        # The Daily account balance goal by eod
         self.set_adjusted_balance(int(row.iloc[0]['Adj$Balance'][1:]))
 
-        # The Number of Contracts Per Trade
-        # self.set_position_size(int(row.iloc[0]['Pos#Open']))
-        self.set_position_size(int(1))              # TEMPORARY
-
-        # The Total monye value of my risk above
-        # self.set_total_risk(int(row.iloc[0]['Tot$Risk']))
-
-        # The Percentage Goal For Each Trade
+        # The Daily percentage goal per trade
         self.set_profit_percentage(float(row.iloc[0]['Pos%Tgt'][:-1]))
 
+        # The Daily total risk $ per trade
+        self.set_total_risk(int(row.iloc[0]['Tot$Risk'][1:]))
+
         # The Contract Price
-        # self.set_contract_price(float(row.iloc[0]['Pos$Size'][1:]))
-        self.set_contract_price(float(60.0))        # TEMPORARY
+        self.set_contract_price(float(row.iloc[0]['Pos$Size'][1:]))
+
+        # The Number of Contracts Per Trade
+        self.set_position_size(int(row.iloc[0]['Pos#Open']))
 
         # The Current Account Balance
-        self.set_balance(self.total_cash())
-    
+        self.set_balance(self.get_total_cash())
+
 
     def save_settings(self):
         """
@@ -714,4 +727,4 @@ class Client:
         range = f'{sheet_name}!{column}{row}'
         
         # Use a cuurent balanace from the api
-        self.sheet.update_sheet(range, self.total_cash())
+        self.sheet.update_sheet(range, self.get_total_cash())
