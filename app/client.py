@@ -29,7 +29,8 @@ class Client:
         self.schwab = Schwab()
         self.sheet = Sheet()
         self.stream = None
-
+        self.hash = None
+        
         self.today, self.tomorrow = dates()
         self.now = datetime.now().strftime("%-m/%-d/%Y")
         self.loss_percentage = float(-50.00)              
@@ -43,8 +44,6 @@ class Client:
         self.balance = None
         self.momentum_call_colors = ['darkblue', 'cyan']
         self.momentum_put_colors = ['purple', 'magenta']
-
-        self.hash = None
 
         self.fetch_hash()
         self.set_settings()
@@ -74,32 +73,38 @@ class Client:
         while True:
             self.signals.get_put_event().wait()
 
-            print("Step 1: CHECK MOMENTUM")
-            # Here we will use the Momentum chain, checking funds, and current position.
-            if self.check_momentum_chain() in self.momentum_put_colors:
-                print("Step 2: SELL ANY ACTIVE POSITIONS")
-                self.sell_position()
-                print("Step 3: CHECK FOR SUFFICIENT FUNDS")
-                if self.is_enough_funds():
-                    print("Step 4: SELECT BEST CONTRACT")
-                    put_contract = self.best_contract('PUT')
-                    if put_contract is None:
-                        pass
-                    else:
-                        print("Step 5: ENTER POSITION")
-                        response = self.buy_position(put_contract, 'PUT')
-                        if response is None:
+            print("\nStep 1: CHECK SQUEEZE")
+            momentum, squeeze = self.check_momentum_chain()
+            if squeeze:
+                print("MARKET IS IN A SQUEEZE!")
+                pass
+            else:
+                # Here we will use the Momentum chain, checking funds, and current position.
+                print("\nStep 2: CHECK MOMENTUM")
+                if momentum in self.momentum_put_colors:
+                    print("\nStep 3: SELL ANY ACTIVE POSITIONS")
+                    self.sell_position()
+                    print("\nStep 4: CHECK FOR SUFFICIENT FUNDS")
+                    if self.is_enough_funds():
+                        print("\nStep 5: SELECT BEST CONTRACT")
+                        put_contract = self.best_contract('PUT')
+                        if put_contract is None:
                             pass
                         else:
-                            print("Step 6: CHECK POSITION")
-                            self.check_position('PUT')
+                            print("\nStep 6: ENTER POSITION")
+                            response = self.buy_position(put_contract, 'PUT')
+                            if response is None:
+                                pass
+                            else:
+                                print("\nStep 7: CHECK POSITION")
+                                self.check_position('PUT')
+                    else:
+                        print("ERROR: INSUFFICIENT FUNDS!")
+                        pass
                 else:
-                    print("ERROR: INSUFFICIENT FUNDS!")
+                    print("ERROR: MOMENTUM DOES NOT MATCH WITH ALERT!")
                     pass
-            else:
-                print("ERROR: MOMENTUM DOES NOT MATCH WITH ALERT!")
-                pass
-            print("Step 7: RESET CURRENT POSITION AND CLEAR EVENT\n")
+            print("\nStep 8: RESET CURRENT POSITION AND CLEAR EVENT\n")
             self.signals.reset_position()
             self.signals.get_put_event().clear()
 
@@ -117,32 +122,38 @@ class Client:
         while True:
             self.signals.get_call_event().wait()
 
-            print("Step 1: CHECK MOMENTUM")
-            # Here we will use the Momentum chain, checking funds, and current position.
-            if self.check_momentum_chain() in self.momentum_call_colors:
-                print("\nStep 2: SELL ANY ACTIVE POSITIONS")
-                self.sell_position()
-                print("\nStep 3: CHECK FOR SUFFICIENT FUNDS")
-                if self.is_enough_funds():
-                    print("\nStep 4: SELECT BEST CONTRACT")
-                    call_contract = self.best_contract('CALL')
-                    if call_contract is None:
-                        pass
-                    else:
-                        print("\nStep 5: ENTER POSITION")
-                        response = self.buy_position(call_contract, 'CALL')
-                        if response is None:
+            print("\nStep 1: CHECK SQUEEZE")
+            momentum, squeeze = self.check_momentum_chain()
+            if squeeze:
+                print("MARKET IS IN A SQUEEZE!")
+                pass
+            else:
+                # Here we will use the Momentum chain, checking funds, and current position.
+                print("\nStep 2: CHECK MOMENTUM")
+                if momentum in self.momentum_call_colors:
+                    print("\nStep 3: SELL ANY ACTIVE POSITIONS")
+                    self.sell_position()
+                    print("\nStep 4: CHECK FOR SUFFICIENT FUNDS")
+                    if self.is_enough_funds():
+                        print("\nStep 5: SELECT BEST CONTRACT")
+                        call_contract = self.best_contract('CALL')
+                        if call_contract is None:
                             pass
                         else:
-                            print("\nStep 6: CHECK POSITION")
-                            self.check_position('CALL')
+                            print("\nStep 6: ENTER POSITION")
+                            response = self.buy_position(call_contract, 'CALL')
+                            if response is None:
+                                pass
+                            else:
+                                print("\nStep 7: CHECK POSITION")
+                                self.check_position('CALL')
+                    else:
+                        print("ERROR: INSUFFICIENT FUNDS!")
+                        pass
                 else:
-                    print("ERROR: INSUFFICIENT FUNDS!")
+                    print("ERROR: MOMENTUM DOES NOT MATCH WITH ALERT!!")
                     pass
-            else:
-                print("ERROR: MOMENTUM DOES NOT MATCH WITH ALERT!!")
-                pass
-            print("\nStep 7: RESET CURRENT POSITION AND CLEAR EVENT")
+            print("\nStep 8: RESET CURRENT POSITION AND CLEAR EVENT")
             self.signals.reset_position()
             self.signals.get_call_event().clear()
 
@@ -277,7 +288,7 @@ class Client:
 
                 print("NOW SEARCHING FOR ACTIVE CONTRACTS...")
                 open_positions = self.schwab.account_number(self.hash, "positions")
-                active_contract = open_positions["securitiesAccount"]["positions"][0]         # RASIE KEY EXCEPTION - ["positions"]
+                active_contract = open_positions["securitiesAccount"]["positions"][0]         # RASIE KEY EXCEPTION -> ["positions"]
                 print("ACTIVE CONTRACT FOUND!")
 
                 print("EXTRACTING MARKET VALUE...")
@@ -288,7 +299,6 @@ class Client:
                 order_replacement = self.create_order(round(market_value, 2), symbol, 'SELL')
 
             else:
-                # There might be an issue here where it would require a different status to retrieve a pending sell order.
                 print("SEARCHING FOR PENDING ACTIVATION ORDERS...")
                 account_orders = self.schwab.account_orders(maxResults=5, fromEnteredTime=order_date(), toEnteredTime=self.tomorrow, accountNumber=self.hash, status="PENDING_ACTIVATION")
                 # RAISE INDEX EXCEPTION: The pending order was executed If the list is empty
@@ -392,11 +402,11 @@ class Client:
         
         """
         data = self.fetch_price_data()
-        data = ttm_squeeze_momentum(data)
-        color = data['color'].iloc[-count]
+        momentum_data = ttm_squeeze_momentum(data)
+        color = momentum_data['color'].iloc[-count]
+        squeeze = momentum_data['squeeze_on'].iloc[-count]
+        return color, squeeze
 
-        return color
-    
 
 # ************************************************************************************************************************
 # ************************************************ CREATE ORDER **********************************************************
@@ -569,7 +579,7 @@ class Client:
 # *****************************************************************************************************************
 # ************************************************ SETTERS ********************************************************
 # *****************************************************************************************************************
-    def set_balance(self, balance):
+    def set_account_balance(self, balance):
         """
         Set the account balance.
 
@@ -580,6 +590,7 @@ class Client:
             None
         """
         self.balance = balance
+        print(f"Account Balance: ${self.balance}")
 
 
     def set_day(self, day):
@@ -593,6 +604,7 @@ class Client:
             None
         """
         self.day = day
+        print(f"Day: {self.day}")
 
 
     def set_daily_goal(self, daily_goal):
@@ -600,6 +612,7 @@ class Client:
         
         """
         self.daily_goal = daily_goal
+        print(f"Goal Per Trade $: {self.daily_goal}")
 
 
     def set_total_risk(self, total_risk):
@@ -607,6 +620,7 @@ class Client:
         
         """
         self.total_risk = total_risk
+        print(f"Risk Per Trade: {self.total_risk}")
 
 
     def set_adjusted_balance(self, adjusted_balance):
@@ -620,6 +634,7 @@ class Client:
             None
         """
         self.adjusted_balance = adjusted_balance
+        print(f"Account Goal: {self.adjusted_balance}")
 
 
     def set_position_size(self, size):
@@ -633,8 +648,8 @@ class Client:
             None
         """
         position_size = math.ceil(self.total_risk / 50)
-
         self.position_size = position_size
+        print(f"Quantity: {self.position_size}")
 
 
     def set_profit_percentage(self, profit_percentage):
@@ -648,7 +663,7 @@ class Client:
             None
         """
         self.profit_percentage = profit_percentage
-
+        print(f"Goal Per Trade %: {self.profit_percentage}")
 
     def set_contract_price(self, price):
         """
@@ -662,6 +677,7 @@ class Client:
         """
         contract_price = 55.0
         self.contract_price = contract_price / 100
+        print(f"Price: {self.contract_price}")
     
 
     def set_stream(self):
@@ -712,7 +728,7 @@ class Client:
         self.set_position_size(int(row.iloc[0]['Pos#Open']))
 
         # The Current Account Balance
-        self.set_balance(self.get_total_cash())
+        self.set_account_balance(self.get_total_cash())
 
 
     def save_settings(self):
