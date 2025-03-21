@@ -32,7 +32,7 @@ def convert_epoch_to_datetime(epoch_ms):
     """Convert milliseconds epoch time to a datetime object adjusted for timezone."""
     datetime_parsed = pd.to_datetime(epoch_ms, unit='ms')
     datetime_adjusted = datetime_parsed - timedelta(hours=7)  # Adjust for PST
-    return datetime_adjusted.strftime('%H:%M')
+    return datetime_adjusted
 
 
 # def convert_json_to_dataframe(candles):
@@ -58,7 +58,7 @@ def fetch_price_data(schwab, symbol, start, end):
     """Fetch price history from Schwab API."""
     response = schwab.price_history(symbol, 'day', 1, 'minute', 5, start, end, True, True)
     df = create_candle_dataframe(response.json()) if response.ok else None
-    df.to_csv("/Users/josuecastellanos/Documents/Automated_Trading_System/market.csv", mode='w', index=True)
+    # df.to_csv("/Users/josuecastellanos/Documents/Automated_Trading_System/market.csv", mode='w', index=True)
     return df
 
 
@@ -66,7 +66,7 @@ def stream_price_data(schwab, symbol, start, end):
     """Fetch price history from Schwab API."""
     response = schwab.price_history(symbol, 'day', 1, 'minute', 5, start, end, True, True)
     df = create_candle_dataframe(response.json()) if response.ok else None
-    df.to_csv("/Users/josuecastellanos/Documents/Automated_Trading_System/5min_candles.csv", mode='w', index=True)
+    # df.to_csv("/Users/josuecastellanos/Documents/Automated_Trading_System/5min_candles.csv", mode='w', index=True)
     return df
 
 
