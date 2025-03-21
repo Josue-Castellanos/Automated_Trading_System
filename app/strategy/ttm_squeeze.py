@@ -38,7 +38,7 @@ def _filter_market_hours(data, market_open="06:30", market_close="13:00", last_n
     """Filter data for market hours and keep the last N records."""
     # Ensure the index is converted to datetime format
     if not isinstance(data.index, pd.DatetimeIndex):
-        data.index = pd.to_datetime(data.index, errors='coerce')
+        data.index = pd.to_datetime(data.index, format='%Y-%m-%d %H:%M:%S', errors='coerce')
 
     # Now, filter based on market hours
     data_filtered = data.between_time(market_open, market_close)
@@ -61,7 +61,6 @@ def _precise_linear_regression(close_prices):
     # return (N * sum_xy - sum_x * sum_y) / (N * sum_x2 - sum_x**2)
     slope, intercept = np.polyfit(np.arange(len(close_prices)), close_prices, 1)
     return slope
-
 
 
 def _get_color(data, i):
