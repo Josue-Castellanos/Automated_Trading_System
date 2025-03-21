@@ -35,9 +35,6 @@ class Signals():
             subject = subject.decode(encoding or "utf-8")
 
         signal_type = subject[33:39].upper()
-
-        # if self.is_smart_money():
-        #     print(f"RECEIVED {signal_type} Alert: SMART MONEY, WE WAIT.\n")
         
         if signal_type in CALL_SIGNAL_TYPES:
             print(f"RECEIVED CALL AlERT: {signal_type}\n")
@@ -56,7 +53,6 @@ class Signals():
                 self.CALLEVENT.clear()
             else:
                 print("ALREADY IN PUT EVENT, PASS ALERT!\n")
-
 
 
     def idle_monitor(self):
@@ -79,17 +75,11 @@ class Signals():
                     self.check_new_emails(client)
             except KeyboardInterrupt:
                 print("\nKeyboardInterrupt detected! Logging out...")
-
             except Exception as e:
                 print(f"An error occurred: {e}")
-
             finally:
-                self.logout(client)
+                client.logout()
                 print("Client successfully logged out. Exiting...")
-
-
-    def logout(self, client):
-        client.logout()
 
 
     def check_new_emails(self, client):
@@ -111,17 +101,6 @@ class Signals():
         market_open = time(6, 30)  # e.g., 6:30 AM
         market_close = time(12, 58)  # e.g., 12:58 PM
         return market_open <= now.time() <= market_close
-    
-
-    def is_smart_money(self):
-        """
-        Check if the current time is within smart money hours
-            - first 30 minutes from market open in Pacific time
-        """
-        now = datetime.now()
-        market_smart_money = time(7, 00)  # e.g., 7:00 AM
-
-        return now.time() <= market_smart_money  
     
 
     def reset_position(self):
