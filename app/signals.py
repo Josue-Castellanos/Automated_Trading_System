@@ -76,10 +76,10 @@ class Signals():
             except KeyboardInterrupt:
                 print("\nKeyboardInterrupt detected! Logging out...")
             except Exception as e:
-                print(f"An error occurred: {e}")
+                print(f"\nAn error occurred: {e}")
             finally:
                 client.logout()
-                print("Client successfully logged out. Exiting...")
+                print("\nClient successfully logged out. Exiting...")
 
 
     def check_new_emails(self, client):
