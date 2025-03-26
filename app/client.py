@@ -33,15 +33,14 @@ class Client:
         
         self.today, self.tomorrow = dates()
         self.now = datetime.now().strftime("%-m/%-d/%Y")
-        self.loss_percentage = float(-50.00)              
-        self.goal_percentage = float(100.00)
+        self.loss_percentage = float(-50.00)
+        self.profit_percentage = None             
         self.position_size = None
         self.total_risk = None
-        self.profit_percentage = None
         self.contract_price = None
         self.adjusted_balance = None
         self.day = None
-        self.balance = None
+        self.account_balance = None
         self.momentum_call_colors = ['darkblue', 'cyan']
         self.momentum_put_colors = ['purple', 'magenta']
 
@@ -75,8 +74,9 @@ class Client:
 
             print("\nStep 1: CHECK SQUEEZE")
             momentum, squeeze = self.check_momentum_chain()
+
             if squeeze:
-                print("MARKET IS IN A SQUEEZE!")
+                print("MARKET IN SQUEEZE!")
                 pass
             else:
                 # Here we will use the Momentum chain, checking funds, and current position.
@@ -124,8 +124,9 @@ class Client:
 
             print("\nStep 1: CHECK SQUEEZE")
             momentum, squeeze = self.check_momentum_chain()
+
             if squeeze:
-                print("MARKET IS IN A SQUEEZE!")
+                print("MARKET IN SQUEEZE!")
                 pass
             else:
                 # Here we will use the Momentum chain, checking funds, and current position.
@@ -310,7 +311,7 @@ class Client:
                 if order_replacement is None:
                     return
             print("POSTING REPLACEMNT ORDER...")  
-            self.schwab.order_replace(self, accountNumber=self.hash, orderId=orderId, order=order_replacement)
+            self.schwab.order_replace(accountNumber=self.hash, orderId=orderId, order=order_replacement)     # RASIE TYPE EXCEPTION
         except json.decoder.JSONDecodeError:
             print("REPLACEMENT ORDER POSTED, PENDING ACTIVATION...")
         except IndexError:
@@ -319,7 +320,9 @@ class Client:
         except KeyError:
             print("NO ACTIVE CONTRACT FOUND!")
             return
-
+        except TypeError as e:
+            print(f"REPLACEMENT ORDER CANCELED: {e}")
+            return
 
     def delete_pending_position(self):
         """
@@ -566,14 +569,14 @@ class Client:
         """
         
         """
-        return self.balance >= self.contract_price
+        return self.account_balance >= self.contract_price
     
 
     def calculate_remaining_balance(self):
         """
         
         """
-        self.balance = self.balance - (self.contract_price * self.position_size)
+        self.account_balance = self.account_balance - (self.contract_price * self.position_size)
 
 
 # *****************************************************************************************************************
@@ -589,8 +592,8 @@ class Client:
         Returns:
             None
         """
-        self.balance = balance
-        print(f"Account Balance: ${self.balance}")
+        self.account_balance = balance
+        print(f"Account Balance: ${self.account_balance}")
 
 
     def set_day(self, day):
@@ -612,7 +615,7 @@ class Client:
         
         """
         self.daily_goal = daily_goal
-        print(f"Goal Per Trade $: {self.daily_goal}")
+        print(f"Goal Per Trade: ${self.daily_goal}")
 
 
     def set_total_risk(self, total_risk):
@@ -620,7 +623,7 @@ class Client:
         
         """
         self.total_risk = total_risk
-        print(f"Risk Per Trade: {self.total_risk}")
+        print(f"Risk Per Trade: ${self.total_risk}")
 
 
     def set_adjusted_balance(self, adjusted_balance):
@@ -634,7 +637,7 @@ class Client:
             None
         """
         self.adjusted_balance = adjusted_balance
-        print(f"Account Goal: {self.adjusted_balance}")
+        print(f"Account Goal By EOD: ${self.adjusted_balance}")
 
 
     def set_position_size(self, size):
@@ -649,6 +652,7 @@ class Client:
         """
         position_size = math.ceil(self.total_risk / 50)
         self.position_size = position_size
+        self.position_size = 1
         print(f"Quantity: {self.position_size}")
 
 
@@ -663,7 +667,8 @@ class Client:
             None
         """
         self.profit_percentage = profit_percentage
-        print(f"Goal Per Trade %: {self.profit_percentage}")
+        print(f"Goal Per Trade: {self.profit_percentage}%")
+
 
     def set_contract_price(self, price):
         """
@@ -677,7 +682,7 @@ class Client:
         """
         contract_price = 55.0
         self.contract_price = contract_price / 100
-        print(f"Price: {self.contract_price}")
+        print(f"Price: ${int(contract_price)}")
     
 
     def set_stream(self):
@@ -709,11 +714,14 @@ class Client:
         # The Row # in excel sheet
         self.set_day(int(row.iloc[0]['Day']))
 
-        # The Daily profit goal per trade
-        self.set_daily_goal(int(row.iloc[0]['Adj$Gain'][1:]))
+        # The Current Account Balance
+        self.set_account_balance(self.get_total_cash())
 
         # The Daily account balance goal by eod
         self.set_adjusted_balance(int(row.iloc[0]['Adj$Balance'][1:]))
+
+        # The Daily profit goal per trade
+        self.set_daily_goal(int(row.iloc[0]['Adj$Gain'][1:]))
 
         # The Daily percentage goal per trade
         self.set_profit_percentage(float(row.iloc[0]['Pos%Tgt'][:-1]))
@@ -726,9 +734,6 @@ class Client:
 
         # The Number of Contracts Per Trade
         self.set_position_size(int(row.iloc[0]['Pos#Open']))
-
-        # The Current Account Balance
-        self.set_account_balance(self.get_total_cash())
 
 
     def save_settings(self):

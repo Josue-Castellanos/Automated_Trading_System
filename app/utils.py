@@ -35,7 +35,6 @@ def convert_epoch_to_datetime(epoch_ms):
     return datetime_adjusted
 
 
-# def convert_json_to_dataframe(candles):
 def create_candle_dataframe(candles):
     """Convert API response to a DataFrame."""
     data = [
