@@ -1,4 +1,4 @@
-from client import Client
+from client_stream import Client
 from datetime import datetime, time
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
