@@ -13,7 +13,7 @@ class Scheduler:
         tz = pytz.timezone('America/Los_Angeles')
 
         # Schedule the start and stop of the client with the specified timezone
-        self.scheduler.add_job(self.start, 'cron', hour=1, minute=20, timezone=tz)
+        self.scheduler.add_job(self.start, 'cron', hour=6, minute=30, timezone=tz)
         self.scheduler.add_job(self.stop, 'cron', hour=12, minute=59, timezone=tz)
 
         # Check if market is already open when script starts
