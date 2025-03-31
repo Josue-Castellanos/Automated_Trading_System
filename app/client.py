@@ -2,11 +2,10 @@ import json
 import threading
 import time
 import math
-import pandas as pd
 from schwab import Schwab
 from sheet import Sheet
 from datetime import datetime
-from utils  import dates, order_date, timedelta
+from utils  import dates, order_date, create_order, create_option_dataframe, fetch_price_data
 from strategy.ttm_squeeze import ttm_squeeze_momentum
 from signals import Signals
 from stream import Stream, process_data
@@ -44,15 +43,14 @@ class Client:
         self.momentum_call_colors = ['darkblue', 'cyan']
         self.momentum_put_colors = ['purple', 'magenta']
 
-        self.fetch_hash()
+        self.get_hash()
         self.set_settings()
 
         threading.Thread(target=self.handleCallEvent, daemon=True).start()
         threading.Thread(target=self.handlePutEvent, daemon=True).start()
 
-        self.check_position(self.position_type())
+        self.check_position(self.get_position_type())
 
-        # self.set_stream()
         self.signals.idle_monitor()
 
 
@@ -85,7 +83,7 @@ class Client:
                     print("\nStep 3: SELL ANY ACTIVE POSITIONS")
                     self.sell_position()
                     print("\nStep 4: CHECK FOR SUFFICIENT FUNDS")
-                    if self.is_enough_funds():
+                    if self.account_balance >= self.contract_price:
                         print("\nStep 5: SELECT BEST CONTRACT")
                         put_contract = self.best_contract('PUT')
                         if put_contract is None:
@@ -135,7 +133,7 @@ class Client:
                     print("\nStep 3: SELL ANY ACTIVE POSITIONS")
                     self.sell_position()
                     print("\nStep 4: CHECK FOR SUFFICIENT FUNDS")
-                    if self.is_enough_funds():
+                    if self.account_balance >= self.contract_price:
                         print("\nStep 5: SELECT BEST CONTRACT")
                         call_contract = self.best_contract('CALL')
                         if call_contract is None:
@@ -175,7 +173,7 @@ class Client:
         try:
             print(f"SEARCHING FOR BEST {type} CONTRACT...")
             options = self.schwab.get_chains('SPY', type, '10', 'TRUE', '', '', '', 'OTM', self.today, self.today)
-            strike_price_df = self.create_option_dataframe(options)
+            strike_price_df = create_option_dataframe(options)
             filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
             if type == 'PUT':
@@ -204,7 +202,7 @@ class Client:
         """
         try:
             print("CREATING BUY ORDER...")
-            buy_order = self.create_order(contract.get('Ask'), contract.get('Symbol'), 'BUY')
+            buy_order = create_order(contract.get('Ask'), contract.get('Symbol'), 'BUY', self.position_size)
             print("BUY ORDER CREATED.")
 
             print("POSTING BUY ORDER...")
@@ -215,12 +213,12 @@ class Client:
             max_attempts = 0
             while max_attempts < 4:
                 time.sleep(8)
-                if self.position_type() is None:
+                if self.get_position_type() is None:
                     print(f"BUY ORDER REPLACEMENT: {max_attempts + 1}.")
                     self.replace_position(order_type=type)
                 else:
                     print("CONTRACT BOUGHT!")
-                    self.calculate_remaining_balance()
+                    self.account_balance = self.account_balance - (self.contract_price * self.position_size)
                     return "BOUGHT"
                 max_attempts += 1
 
@@ -251,7 +249,7 @@ class Client:
             print("ACTIVE CONTRACT FOUND!")
 
             print("CREATING SELL ORDER...")
-            sell_order = self.create_order(round(market_value, 2), symbol, 'SELL')
+            sell_order = create_order(round(market_value, 2), symbol, 'SELL', self.position_size)
             print("SELL ORDER CREATED.")
 
             print("POSTING SELL ORDER...")
@@ -264,7 +262,7 @@ class Client:
         max_attempts = 0
         while True:
             time.sleep(15)
-            if self.position_type() is None:
+            if self.get_position_type() is None:
                 print("CONTRACT SOLD!")
                 break
             else:
@@ -297,7 +295,7 @@ class Client:
 
                 symbol = active_contract["instrument"]["symbol"]
                 print("CREATING A NEW SELL ORDER...")
-                order_replacement = self.create_order(round(market_value, 2), symbol, 'SELL')
+                order_replacement = create_order(round(market_value, 2), symbol, 'SELL', self.position_size)
 
             else:
                 print("SEARCHING FOR PENDING ACTIVATION ORDERS...")
@@ -323,6 +321,7 @@ class Client:
         except TypeError as e:
             print(f"REPLACEMENT ORDER CANCELED: {e}")
             return
+
 
     def delete_pending_position(self):
         """
@@ -376,7 +375,7 @@ class Client:
                 
                 elif profit_loss_value >= self.daily_goal:
                     if type == 'CALL':
-                        if self.check_momentum_chain(count=1) in self.momentum_call_colors:
+                        if self.check_momentum_chain() in self.momentum_call_colors:
                             print("MOVING WITH MOMENTUM: HOLD!")
                             continue
                         else: 
@@ -384,7 +383,7 @@ class Client:
                             self.sell_position()
                             continue
                     elif type == 'PUT':
-                        if self.check_momentum_chain(count=1) in self.momentum_put_colors:
+                        if self.check_momentum_chain() in self.momentum_put_colors:
                             print("MOVING WITH MOMENTUM: HOLD!")
                             continue
                         else:
@@ -404,100 +403,17 @@ class Client:
         """
         
         """
-        data = self.fetch_price_data()
+        data = fetch_price_data(self.schwab, 'SPY', 'minute', 3, self.today, self.today)
         momentum_data = ttm_squeeze_momentum(data)
         color = momentum_data['color'].iloc[-count]
         squeeze = momentum_data['squeeze_on'].iloc[-count]
         return color, squeeze
 
 
-# ************************************************************************************************************************
-# ************************************************ CREATE ORDER **********************************************************
-# ************************************************************************************************************************
-    def create_order(self, price, symbol, type, var='OPEN'):
-        """
-        Create an order dictionary for buying or selling a position.
-
-        Args:
-            price (float): The price at which to place the order.
-            symbol (str): The symbol of the instrument to trade.
-            type (str): The type of order ('BUY' or 'SELL').
-            var (str, optional): The variability of the order ('OPEN' or 'CLOSE'). Defaults to 'OPEN'.
-
-        Returns:
-            dict: A dictionary representing the order details.
-        """
-        if type != 'BUY':
-            var='CLOSE'
-
-        order = {
-            'orderType': 'LIMIT',
-            'session': 'NORMAL',
-            'price': price,
-            'duration': 'DAY',
-            'orderStrategyType': 'SINGLE',
-            'orderLegCollection': [{
-                'instruction': f'{type}_TO_{var}',
-                'quantity': self.position_size,
-                'instrument': {
-                    'symbol': symbol,
-                    'assetType': 'OPTION'
-                }
-            }]
-        }
-        return order
-
-
-    def create_option_dataframe(self, options):
-        """
-        
-        """
-        data = []
-        exp_date_map = options.get('callExpDateMap') or options.get('putExpDateMap')
-        for exp_date, strikes in exp_date_map.items():
-            for strike, options_list in strikes.items():
-                for option in options_list:
-                    option_data = {
-                        'Put/Call': option.get('putCall'),
-                        'Symbol': option.get('symbol'),
-                        'Description': option.get('description'),
-                        'Bid': option.get('bid'),
-                        'Ask': option.get('ask'),
-                        'Volume': option.get('totalVolume'),
-                        'Delta': option.get('delta'),
-                        'OI': option.get('openInterest'),
-                        'Expiration': exp_date,
-                        'Strike': strike,
-                        'ITM': option.get('inTheMoney')
-                    }
-                    data.append(option_data)
-        return pd.DataFrame(data)
-
-
-    def create_candle_dataframe(self, candles):
-        """
-        Convert API response to a DataFrame.
-        """
-        data = [
-            {
-                'Datetime': self.convert_epoch_to_datetime(ohlcv['datetime']),
-                'Open': ohlcv.get('open'),
-                'High': ohlcv.get('high'),
-                'Low': ohlcv.get('low'),
-                'Close': ohlcv.get('close'),
-                'Volume': ohlcv.get('volume')
-            }
-            for ohlcv in candles['candles'] if ohlcv.get('datetime') is not None
-        ]
-        df = pd.DataFrame(data)
-        df.set_index('Datetime', inplace=True)
-        return df
-
-
 # *******************************************************************************************************************
-# ************************************************ UTILITIES ********************************************************
+# ************************************************** GETTERS ********************************************************
 # *******************************************************************************************************************
-    def fetch_hash(self):
+    def get_hash(self):
         """
         
         """
@@ -509,26 +425,7 @@ class Client:
                 print("Invalid Hash returned, needs new token")
 
 
-    def fetch_price_data(self):
-        """
-        Fetch price history from Schwab API.
-        """
-        response = self.schwab.price_history('SPY', 'day', 1, 'minute', 5, self.today, self.today, True, True)
-        df = self.create_candle_dataframe(response.json()) if response.ok else None
-        # df.to_csv("/Users/josuecastellanos/Documents/Automated_Trading_System/market.csv", mode='w', index=True)
-        return df
-    
-
-    def convert_epoch_to_datetime(self, epoch_ms):
-        """
-        Convert milliseconds epoch time to a datetime object adjusted for timezone.
-        """
-        datetime_parsed = pd.to_datetime(epoch_ms, unit='ms')
-        datetime_adjusted = datetime_parsed - timedelta(hours=7)  # Adjust for PST
-        return datetime_adjusted.strftime('%H:%M')
-
-
-    def position_type(self):
+    def get_position_type(self):
         """
         Determine the type of the current open position.
 
@@ -563,20 +460,6 @@ class Client:
         total_cash = account_info["securitiesAccount"]["currentBalances"]["totalCash"]
         
         return total_cash 
-
-
-    def is_enough_funds(self):
-        """
-        
-        """
-        return self.account_balance >= self.contract_price
-    
-
-    def calculate_remaining_balance(self):
-        """
-        
-        """
-        self.account_balance = self.account_balance - (self.contract_price * self.position_size)
 
 
 # *****************************************************************************************************************
@@ -701,9 +584,6 @@ class Client:
         self.stream.start(data_in_df)
 
 
-# ******************************************************************************************************************
-# ************************************************ SETTINGS ********************************************************
-# ******************************************************************************************************************
     def set_settings(self):
         """
         
@@ -736,6 +616,9 @@ class Client:
         self.set_position_size(int(row.iloc[0]['Pos#Open']))
 
 
+# ******************************************************************************************************************
+# ************************************************ SETTINGS ********************************************************
+# ******************************************************************************************************************
     def save_settings(self):
         """
         
