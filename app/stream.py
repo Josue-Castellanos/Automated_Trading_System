@@ -1,24 +1,24 @@
 import pandas as pd
 import json
-import numpy as np
+import time
 import asyncio
 import websockets
 import sys
 sys.path.append("/home/ubuntu/Automated_Trading_System")
-from schwab import Schwab
 from app.config import Settings
-from utils import datetime, convert_epoch_to_datetime, stream_price_data
+from utils import convert_epoch_to_datetime, datetime
 
 
 class Stream:
-    def __init__(self, streamer_info):
+    def __init__(self, streamer_info, check_momentum_chain=None):
         self.settings = Settings()
         self.streamer_info = streamer_info
         self._request_id = 0
         self._websocket = None
         self.active = False
         self.df = None
-        self.one_minute_data = []  # Stores 1-minute candles before forming a 5-minute candle
+        self.one_minute_data = []  # Stores 1-minute candles before forming a 3-minute candle
+        self.on_new_candle = check_momentum_chain
 
     def set_dataframe(self, df):
         """
@@ -30,7 +30,7 @@ class Stream:
         """
         Start the WebSocket stream and subscribe to SPY data.
         """
-        while True:
+        while self.market_is_open():
             try:
                 async with websockets.connect(self.streamer_info.get('streamerSocketUrl'), ping_timeout=ping_timeout) as self._websocket:
                     print("Connected to streaming server.")
@@ -78,15 +78,19 @@ class Stream:
                     print("Subscribed to SPY 1-minute data.")
 
                     self.active = True
-                    while True:
+                    while self.market_is_open():
                         response = await self._websocket.recv()
                         await receiver_func(response, self)
             except Exception as e:
                 print(f"Error: {e}")
-            finally:
-                self.stop()
-                self.active = False
-                print("WebSocket stream stopped.")
+                return Exception
+            except asyncio.exceptions.CancelledError:
+                return asyncio.exceptions.CancelledError
+            except KeyboardInterrupt: 
+                print("")
+            self.stop()
+            print("WebSocket stream stopped.")
+            return 
 
     def start(self, receiver):
         """
@@ -106,9 +110,19 @@ class Stream:
             print("Stream stopping...")
 
 
+    def market_is_open(self):
+        """
+        Check if the current time is within market hours
+        """
+        now = datetime.now()
+        market_open = time(6, 30)  # e.g., 6:30 AM
+        market_close = time(12, 58)  # e.g., 12:58 PM
+        return market_open <= now.time() <= market_close
+
+
 async def process_data(data, stream):
     """
-    Processes incoming 1-minute data, aggregates into 5-minute candles, and saves to CSV.
+    Processes incoming 1-minute data, aggregates into 3-minute candles, and saves to CSV.
     """
     parsed_data = json.loads(data)
     
@@ -130,19 +144,19 @@ async def process_data(data, stream):
                 # Store 1-minute data
                 stream.one_minute_data.append(new_candle)
 
-                # Check if it's time to aggregate a 5-minute candle
-                if len(stream.one_minute_data) == 5:
-                    _aggregate_five_minute_candle(stream)
+                # Check if it's time to aggregate a 3-minute candle
+                if len(stream.one_minute_data) == 3:
+                    _aggregate_three_minute_candle(stream)
 
 
-def _aggregate_five_minute_candle(stream):
+def _aggregate_three_minute_candle(stream):
     """
     Aggregates stored 1-minute candles into a single 5-minute candle and appends to CSV.
     """
-    if len(stream.one_minute_data) < 5:
+    if len(stream.one_minute_data) < 3:
         return
 
-    five_minute_candle = {
+    three_minute_candle = {
         "Datetime": stream.one_minute_data[0]["Datetime"],                      # First timestamp of the group
         "Open": stream.one_minute_data[0]["Open"],                              # First 1-minute candle 
         "High": max(candle["High"] for candle in stream.one_minute_data),
@@ -152,7 +166,7 @@ def _aggregate_five_minute_candle(stream):
     }
 
     # Convert to DataFrame and append
-    new_df = pd.DataFrame([five_minute_candle])
+    new_df = pd.DataFrame([three_minute_candle])
     new_df.set_index("Datetime", inplace=True)
 
     # Append to main dataframe
@@ -160,37 +174,10 @@ def _aggregate_five_minute_candle(stream):
     stream.df.sort_index(inplace=True)                    
     print(stream.df.tail())
 
-    # Save to CSV
-    csv_filename = sys.path.append("/home/ubuntu/Automated_Trading_System/5min_candles.csv")
-
-    # This needs to also replace a row with the same datetime, since this is the grouped up 5 minute candle.
-    # TODO:// Needs to be fixed before production
-    new_df.to_csv(csv_filename, mode='a',header=False, index=True)
-
     # Clear stored 1-minute candles
     stream.one_minute_data.clear()
-# def _aggregate_fifteen_minute_candle(stream):
-#     return
-# def _aggregate_thirty_minute_candle(stream):
-#     return
-# def _aggregate_60_minute_candle(stream):
-#     return
 
+    # Notify client if callback is set
+    if stream.on_new_candle:
+        stream.on_new_candle()
 
-
-
-
-
-# # Initialize trading stream
-# schwab = Schwab()
-# streamer_info = schwab.preferences().get('streamerInfo', None)[0]
-# df = stream_price_data(schwab, 'SPY', datetime.now(), datetime.now())
-
-# stream = Stream(streamer_info)
-# stream.set_dataframe(df)
-
-# # Start stream with new data processing function
-# async def data_in_df(data, *args):
-#     await process_data(data, stream)
-
-# stream.start(data_in_df)
