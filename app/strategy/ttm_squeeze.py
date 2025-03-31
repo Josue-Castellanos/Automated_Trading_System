@@ -34,7 +34,7 @@ def ttm_squeeze_momentum(data, length=20, nBB=2.0, nK_Mid=1.5, nK_Low=1.0, nK_Hi
     return _filter_market_hours(data)
 
 
-def _filter_market_hours(data, market_open="06:30", market_close="13:00", last_n=79):
+def _filter_market_hours(data, market_open="06:30", market_close="13:00"):
     """Filter data for market hours and keep the last N records."""
     # Ensure the index is converted to datetime format
     if not isinstance(data.index, pd.DatetimeIndex):
@@ -44,7 +44,7 @@ def _filter_market_hours(data, market_open="06:30", market_close="13:00", last_n
     data_filtered = data.between_time(market_open, market_close)
 
     # Return the last N records
-    return data_filtered.tail(last_n)
+    return data_filtered
 
 
 def _precise_linear_regression(close_prices):
