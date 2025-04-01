@@ -4,8 +4,7 @@ import math
 import threading
 from schwab import Schwab
 from sheet import Sheet
-from datetime import datetime
-from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order
+from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, datetime, timedelta
 from strategy.ttm_squeeze import ttm_squeeze_momentum
 from stream import Stream, process_data
 
@@ -58,15 +57,23 @@ class Client:
 
                 # Find the next 3-minute mark
                 next_minute = (minutes // 3 + 1) * 3  
-                if next_minute >= 60:
-                    next_minute = 0  # Wrap around the hour
 
-                # Calculate sleep duration until next 3-minute mark
-                next_time = now.replace(minute=next_minute, second=0, microsecond=0)
+                # If next_minute exceeds 59, reset to 0 and increment hour
+                next_time = now.replace(second=0, microsecond=0)
+
+                if next_minute >= 60:
+                    next_time += timedelta(hours=1)  # Move to the next hour
+                    next_time = next_time.replace(minute=0)  # Reset to 00 minutes
+                else:
+                    next_time = next_time.replace(minute=next_minute)
+
+                # Calculate sleep duration until the next 3-minute mark
                 sleep_duration = (next_time - now).total_seconds()
 
                 print(f"Sleeping for {sleep_duration:.2f} seconds until {next_time.strftime('%H:%M:%S')}")
-                time.sleep(sleep_duration)
+
+                if sleep_duration > 0:
+                    time.sleep(sleep_duration)  # Ensure we only sleep for non-negative time
 
                 # Call the momentum checker
                 self.check_momentum_chain()
