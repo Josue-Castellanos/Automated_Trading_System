@@ -5,7 +5,7 @@ import threading
 from schwab import Schwab
 from sheet import Sheet
 from datetime import datetime
-from utils  import dates, order_date, fetch_price_data
+from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order
 from strategy.ttm_squeeze import ttm_squeeze_momentum
 from stream import Stream, process_data
 
@@ -44,23 +44,39 @@ class Client:
         self.momentum_put_colors = ['purple', 'magenta']
 
         # Settings
-        self.fetch_hash()
+        self.get_hash()
         self.set_settings()
 
-        try:
-            self.set_stream()
-        except Exception:
-            def checker():
-                while True:
-                    self.check_momentum_chain()
-                    time.sleep(180)         # 3-minutes
-            threading.Thread(target=checker, daemon=True).start()
+        # try:
+        #     self.set_stream()
+        # except Exception:
+        def checker():
+            while True:
+                now = datetime.now()
+                minutes = now.minute
+                seconds = now.second
+
+                # Find the next 3-minute mark
+                next_minute = (minutes // 3 + 1) * 3  
+                if next_minute >= 60:
+                    next_minute = 0  # Wrap around the hour
+
+                # Calculate sleep duration until next 3-minute mark
+                next_time = now.replace(minute=next_minute, second=0, microsecond=0)
+                sleep_duration = (next_time - now).total_seconds()
+
+                print(f"Sleeping for {sleep_duration:.2f} seconds until {next_time.strftime('%H:%M:%S')}")
+                time.sleep(sleep_duration)
+
+                # Call the momentum checker
+                self.check_momentum_chain()
+        threading.Thread(target=checker, daemon=True).start()
 
 
 # ************************************************************************************************************************
 # **************************************************** MOMENTUM **********************************************************
 # ************************************************************************************************************************
-    def check_momentum_chain(self, count=2):
+    def check_momentum_chain(self, count=1):
         """
         Checks market momentum based on TTM Squeeze indicator.
         Executes trades based on momentum color signals and position status.
@@ -70,6 +86,7 @@ class Client:
         """
         try:
             print("\nStep 1: FETCH DATA")
+            print(datetime.now(),"\n")
             data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', 3, self.today, self.today)
 
             print("\nStep 2: CHECK MOMENTUM")
@@ -80,27 +97,31 @@ class Client:
                 print("ERROR: NOT ENOUGH DATA FOR MOMENTUM ANALYSIS!")
                 return
 
-            color = momentum_data['color'].iloc[-count]       # RAISE INDEX ERROR
-            squeeze = momentum_data['squeeze_on'].iloc[-count]
+            colors = momentum_data[['color']][-count:]['color'].tolist()       # RAISE INDEX ERROR
+            squeeze = momentum_data['squeeze_on'].iloc[-1]
+            current_position = self.position_type()
+
+            print(f"CURRENT POSITION: {current_position}")
+            print(f"DOTS: {colors}")
+            print(f"SQUEEZE: {squeeze}")
 
             # If no active position and market is in a squeeze, wait
-            if self.position_type() is None and squeeze:
-                print("ERROR: MARKET IN SQUEEZE, WAIT!")
+            if current_position is None and squeeze:
+                print("TREND: MARKET IN SQUEEZE, WAIT!")
                 return
 
             # Determine trade action based on momentum color
-            if color in self.momentum_call_colors:
+            if all(color in self.momentum_call_colors for color in colors):
                 trade_type = "CALL"
-            elif color in self.momentum_put_colors:
+            elif all(color in self.momentum_put_colors for color in colors):
                 trade_type = "PUT"
             else:
-                print("ERROR: MOMENTUM DOTS DO NOT MATCH!")
+                print("TREND: LOSING MOMENTUM!")
                 return
 
             # Handle existing positions
-            current_position = self.position_type()
             if current_position == trade_type:
-                print("UPDATE: MOVING WITH MOMENTUM, HOLD!")
+                print("TREND: MOVING WITH MOMENTUM, HOLD!")
                 return
             elif current_position is not None:
                 print("\nStep 3: SELL ACTIVE POSITIONS")
@@ -108,7 +129,8 @@ class Client:
 
             # Check funds and enter position
             print("\nStep 4: CHECK FOR SUFFICIENT FUNDS")
-            if not self.is_enough_funds():
+            print(f"FUNDS: ${self.account_balance}")
+            if not self.account_balance >= self.contract_price * self.position_size:
                 print("ERROR: INSUFFICIENT FUNDS!")
                 return
 
@@ -121,6 +143,8 @@ class Client:
             response = self.buy_position(contract, trade_type)
             if response is None:
                 return
+            
+            print("UPDATE: WAIT FOR NEXT CANDLE!")
         except IndexError:
             return
 
@@ -141,7 +165,7 @@ class Client:
         try:
             print(f"SEARCHING FOR BEST {type} CONTRACT...")
             options = self.schwab.get_chains('SPY', type, '10', 'TRUE', '', '', '', 'OTM', self.today, self.today)
-            strike_price_df = self.create_option_dataframe(options)
+            strike_price_df = create_option_dataframe(options)
             filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
             if type == 'PUT':
@@ -170,7 +194,7 @@ class Client:
         """
         try:
             print("CREATING BUY ORDER...")
-            buy_order = self.create_order(contract.get('Ask'), contract.get('Symbol'), 'BUY')
+            buy_order = create_order(contract.get('Ask'), contract.get('Symbol'), 'BUY', self.position_size)
             print("BUY ORDER CREATED.")
 
             print("POSTING BUY ORDER...")
@@ -180,13 +204,13 @@ class Client:
         finally:
             max_attempts = 0
             while max_attempts < 4:
-                time.sleep(8)
+                time.sleep(5)
                 if self.position_type() is None:
                     print(f"BUY ORDER REPLACEMENT: {max_attempts + 1}.")
                     self.replace_position(order_type=type)
                 else:
                     print("CONTRACT BOUGHT!")
-                    self.calculate_remaining_balance()
+                    self.account_balance = self.account_balance - (self.contract_price * self.position_size)
                     return "BOUGHT"
                 max_attempts += 1
 
@@ -217,7 +241,7 @@ class Client:
             print("ACTIVE CONTRACT FOUND!")
 
             print("CREATING SELL ORDER...")
-            sell_order = self.create_order(round(market_value, 2), symbol, 'SELL')
+            sell_order = create_order(round(market_value, 2), symbol, 'SELL', self.position_size)
             print("SELL ORDER CREATED.")
 
             print("POSTING SELL ORDER...")
@@ -229,7 +253,7 @@ class Client:
             return 
         max_attempts = 0
         while True:
-            time.sleep(15)
+            time.sleep(5)
             if self.position_type() is None:
                 print("CONTRACT SOLD!")
                 break
@@ -244,15 +268,15 @@ class Client:
         
         """
         try:
+            print("SEARCHING FOR PENDING ACTIVATION ORDERS...")
+            account_orders = self.schwab.account_orders(maxResults=1, fromEnteredTime=order_date(), toEnteredTime=self.tomorrow, accountNumber=self.hash, status="WORKING")
+            order = account_orders[0]    # RAISE INDEX EXCEPTION
+            print("PENDING ACTIVATION ORDER FOUND!")
+
+            print("EXTRACTING ID FROM PENDING ORDER...")
+            orderId = order.get('orderId')  
+
             if order_status == 'SELL':
-                print("SEARCHING FOR PENDING ACTIVATION ORDERS...")
-                account_orders = self.schwab.account_orders(maxResults=1, fromEnteredTime=order_date(), toEnteredTime=self.tomorrow, accountNumber=self.hash, status="WORKING")
-                order = account_orders[0]    # RAISE INDEX EXCEPTION
-                print("PENDING ACTIVATION ORDER FOUND!")
-
-                print("EXTRACTING ID FROM PENDING ORDER...")
-                orderId = order.get('orderId')  
-
                 print("NOW SEARCHING FOR ACTIVE CONTRACTS...")
                 open_positions = self.schwab.account_number(self.hash, "positions")
                 active_contract = open_positions["securitiesAccount"]["positions"][0]         # RASIE KEY EXCEPTION -> ["positions"]
@@ -263,15 +287,9 @@ class Client:
 
                 symbol = active_contract["instrument"]["symbol"]
                 print("CREATING A NEW SELL ORDER...")
-                order_replacement = self.create_order(round(market_value, 2), symbol, 'SELL')
+                order_replacement = create_order(round(market_value, 2), symbol, 'SELL', self.position_size)
 
-            else:
-                print("SEARCHING FOR PENDING ACTIVATION ORDERS...")
-                account_orders = self.schwab.account_orders(maxResults=5, fromEnteredTime=order_date(), toEnteredTime=self.tomorrow, accountNumber=self.hash, status="PENDING_ACTIVATION")
-                # RAISE INDEX EXCEPTION: The pending order was executed If the list is empty
-                orderId = account_orders[0].get('orderId')
-                print("PENDING ACTIVATION ORDER FOUND!")
-
+            else:           
                 order_replacement = self.best_contract(order_type)
 
                 if order_replacement is None:
@@ -311,7 +329,7 @@ class Client:
 # *******************************************************************************************************************
 # ************************************************ UTILITIES ********************************************************
 # *******************************************************************************************************************
-    def fetch_hash(self):
+    def get_hash(self):
         """
         
         """
@@ -358,20 +376,6 @@ class Client:
         total_cash = account_info["securitiesAccount"]["currentBalances"]["totalCash"]
         
         return total_cash 
-
-
-    def is_enough_funds(self):
-        """
-        
-        """
-        return self.account_balance >= self.contract_price
-    
-
-    def calculate_remaining_balance(self):
-        """
-        
-        """
-        self.account_balance = self.account_balance - (self.contract_price * self.position_size)
 
 
 # *****************************************************************************************************************
@@ -475,9 +479,9 @@ class Client:
         Returns:
             None
         """
-        contract_price = 55.0
-        self.contract_price = contract_price / 100
-        print(f"Price: ${int(contract_price)}")
+        price = 55.0
+        self.contract_price = price / 100
+        print(f"Price: ${int(price)}")
     
 
     def set_stream(self):

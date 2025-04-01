@@ -2,6 +2,9 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 def dates():
+    """
+    
+    """
     today = datetime.now()
     day_of_week = today.weekday()
 
@@ -22,6 +25,9 @@ def dates():
     
 
 def order_date():
+    """
+    
+    """
     today = datetime.now()
     within_60_days = 360
     from_entered_date = today - timedelta(days=within_60_days)
@@ -29,7 +35,9 @@ def order_date():
 
 
 def convert_epoch_to_datetime(epoch_ms):
-    """Convert milliseconds epoch time to a datetime object adjusted for timezone."""
+    """
+    Convert milliseconds epoch time to a datetime object adjusted for timezone.
+    """
     datetime_parsed = pd.to_datetime(epoch_ms, unit='ms')
     datetime_adjusted = datetime_parsed - timedelta(hours=7)  # Adjust for PST
     return datetime_adjusted
@@ -96,7 +104,9 @@ def create_option_dataframe(options):
 
 
 def create_candle_dataframe(candles, freq):
-    """Convert API response to a DataFrame."""
+    """
+    Convert API response to a DataFrame.
+    """
     data = []
     aggregated_data = []
 
@@ -146,7 +156,9 @@ def create_candle_dataframe(candles, freq):
 
 
 def fetch_price_data(schwab, symbol, time, freq, start, end):
-    """Fetch price history from Schwab API."""
+    """
+    Fetch price history from Schwab API.
+    """
     if freq in [1, 5, 10, 15, 30]:
         response = schwab.price_history(symbol, 'day', 1, time, freq, start, end, True, True)
     else:
@@ -157,7 +169,9 @@ def fetch_price_data(schwab, symbol, time, freq, start, end):
 
 
 def stream_price_data(schwab, symbol, start, end):
-    """Fetch price history from Schwab API."""
+    """
+    Fetch price history from Schwab API.
+    """
     response = schwab.price_history(symbol, 'day', 1, 'minute', 5, start, end, True, True)
     df = create_candle_dataframe(response.json()) if response.ok else None
     # df.to_csv("/Users/josuecastellanos/Documents/Automated_Trading_System/5min_candles.csv", mode='w', index=True)
@@ -165,7 +179,9 @@ def stream_price_data(schwab, symbol, start, end):
 
 
 def fetch_price_data_from_file(file_path):
-    """Fetch price history from market.csv file."""
+    """
+    Fetch price history from market.csv file.
+    """
     try:
         df = pd.read_csv(file_path, parse_dates=['Datetime'])
         df.set_index('Datetime', inplace=True)

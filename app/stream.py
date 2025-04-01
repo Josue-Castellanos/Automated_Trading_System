@@ -1,9 +1,9 @@
 import pandas as pd
 import json
-import time
 import asyncio
 import websockets
 import sys
+from datetime import time
 sys.path.append("/home/ubuntu/Automated_Trading_System")
 from app.config import Settings
 from utils import convert_epoch_to_datetime, datetime

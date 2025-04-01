@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 
 
 def ttm_squeeze_momentum(data, length=20, nBB=2.0, nK_Mid=1.5, nK_Low=1.0, nK_High=2.0):
-    """Calculate TTM Squeeze indicators."""
+    """
+    Calculate TTM Squeeze indicators.
+    """
     rolling_mean = data['Close'].rolling(window=length).mean()
     rolling_std = data['Close'].rolling(window=length).std()
     
@@ -35,7 +37,9 @@ def ttm_squeeze_momentum(data, length=20, nBB=2.0, nK_Mid=1.5, nK_Low=1.0, nK_Hi
 
 
 def _filter_market_hours(data, market_open="06:30", market_close="13:00"):
-    """Filter data for market hours and keep the last N records."""
+    """
+    Filter data for market hours and keep the last N records.
+    """
     # Ensure the index is converted to datetime format
     if not isinstance(data.index, pd.DatetimeIndex):
         data.index = pd.to_datetime(data.index, format='%Y-%m-%d %H:%M:%S', errors='coerce')
@@ -48,23 +52,27 @@ def _filter_market_hours(data, market_open="06:30", market_close="13:00"):
 
 
 def _precise_linear_regression(close_prices):
-    """Perform linear regression on price data."""
+    """
+    Perform linear regression on price data.
+    """
     # N = len(close_prices)
     # x = np.arange(N, dtype=np.float64)
     # y = np.array(close_prices, dtype=np.float64)
-    
+
     # sum_x = np.sum(x)
     # sum_y = np.sum(y)
     # sum_xy = np.sum(x * y)
     # sum_x2 = np.sum(x**2)
-    
+
     # return (N * sum_xy - sum_x * sum_y) / (N * sum_x2 - sum_x**2)
     slope, intercept = np.polyfit(np.arange(len(close_prices)), close_prices, 1)
     return slope
 
 
 def _get_color(data, i):
-    """Assign ThinkorSwim-style coloring based on momentum."""
+    """
+    Assign ThinkorSwim-style coloring based on momentum.
+    """
     if i == 0:
         return "gray"
     prev_momentum = data['momentum'].iloc[i-1]
@@ -77,7 +85,9 @@ def _get_color(data, i):
 
 
 def plot_ttm_squeeze(data):
-    """Plot TTM Squeeze histogram."""
+    """
+    Plot TTM Squeeze histogram.
+    """
     plt.figure(figsize=(15, 6))
     timestamps = data.index.strftime('%H:%M')
 
