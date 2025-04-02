@@ -81,7 +81,7 @@ class Client:
             squeeze = momentum_data['squeeze_on'].iloc[-1]
             current_position = self.position_type()
 
-            print(f"\nCURRENT POSITION: {current_position}")
+            print(f"CURRENT POSITION: {current_position}")
             print(f"DOTS: {colors}")
             print(f"SQUEEZE: {squeeze}")
 
@@ -95,6 +95,7 @@ class Client:
                 print("TREND: MARKET IN HIGH SQUEEZE, WAIT!")
                 return
 
+            print("\nStep 3: SELL ACTIVE POSITIONS")
             # Determine trade action based on momentum color
             if all(color in self.momentum_call_colors for color in colors):
                 trade_type = "CALL"
@@ -106,10 +107,9 @@ class Client:
 
             # Handle existing positions
             if current_position == trade_type:
-                print("TREND: MOVING WITH MOMENTUM, HOLD!")
+                print("TREND: MOVING WITH MOMENTUM, HOLD POSITION!")
                 return
             elif current_position is not None:
-                print("\nStep 3: SELL ACTIVE POSITIONS")
                 self.sell_position()
 
             # Check funds and enter position
