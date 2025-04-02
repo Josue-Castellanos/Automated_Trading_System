@@ -3,7 +3,7 @@ import webbrowser
 import json
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
 import sys
 sys.path.append("/home/ubuntu/Automated_Trading_System")

@@ -1,5 +1,4 @@
-from client_stream import Client
-from datetime import datetime, time
+from client_stream import Client, market_is_open
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
 from tokens import Tokens
@@ -17,21 +16,11 @@ class Scheduler:
         self.scheduler.add_job(self.stop, 'cron', hour=12, minute=59, timezone=tz)
 
         # Check if market is already open when script starts
-        if self.is_market_open():
+        if market_is_open():
             self.start()
 
         # Start the scheduler
         self.scheduler.start()
-
-
-    def is_market_open(self):
-        """
-        Check if the current time is within market hours
-        """
-        now = datetime.now()
-        market_open = time(6, 30)  # e.g., 6:30 AM
-        market_close = time(12, 59)  # e.g., 12:59 PM
-        return market_open <= now.time() <= market_close
     
 
     def start(self):
@@ -44,6 +33,9 @@ class Scheduler:
         if self.client:
             self.client.sell_position()
             self.client.save_settings()
+            if self.client.thread:
+                self.client.thread.join()
+                print("Client thread stopped")
             self.client = None
             print("Client stopped")
 

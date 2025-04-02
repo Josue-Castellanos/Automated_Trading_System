@@ -4,7 +4,7 @@ import math
 import threading
 from schwab import Schwab
 from sheet import Sheet
-from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, datetime, timedelta
+from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, market_is_open, datetime, timedelta
 from strategy.ttm_squeeze import ttm_squeeze_momentum
 from stream import Stream, process_data
 
@@ -26,7 +26,7 @@ class Client:
         self.schwab = Schwab()
         self.sheet = Sheet()
         self.stream = None
-        self.hash = None
+        self.thread = None
         
         # Sheet
         self.today, self.tomorrow = dates()
@@ -38,46 +38,19 @@ class Client:
         self.day = None
         self.account_balance = None
 
+        # Schwab
+        self.hash = self.get_hash()
+
         # Strategy
         self.momentum_call_colors = ['darkblue', 'cyan']
         self.momentum_put_colors = ['purple', 'magenta']
+        self.counter = 0
 
         # Settings
-        self.get_hash()
         self.set_settings()
 
-        # try:
-        #     self.set_stream()
-        # except Exception:
-        def checker():
-            while True:
-                now = datetime.now()
-                minutes = now.minute
-                seconds = now.second
-
-                # Find the next 3-minute mark
-                next_minute = (minutes // 3 + 1) * 3  
-
-                # If next_minute exceeds 59, reset to 0 and increment hour
-                next_time = now.replace(second=0, microsecond=0)
-
-                if next_minute >= 60:
-                    next_time += timedelta(hours=1)  # Move to the next hour
-                    next_time = next_time.replace(minute=0)  # Reset to 00 minutes
-                else:
-                    next_time = next_time.replace(minute=next_minute)
-
-                # Calculate sleep duration until the next 3-minute mark
-                sleep_duration = (next_time - now).total_seconds()
-
-                print(f"Sleeping for {sleep_duration:.2f} seconds until {next_time.strftime('%H:%M:%S')}")
-
-                if sleep_duration > 0:
-                    time.sleep(sleep_duration)  # Ensure we only sleep for non-negative time
-
-                # Call the momentum checker
-                self.check_momentum_chain()
-        threading.Thread(target=checker, daemon=True).start()
+        # Stream
+        self._check_momentum_chain_automatic()
 
 
 # ************************************************************************************************************************
@@ -93,7 +66,7 @@ class Client:
         """
         try:
             print("\nStep 1: FETCH DATA")
-            print(datetime.now(),"\n")
+            print(datetime.now())
             data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', 3, self.today, self.today)
 
             print("\nStep 2: CHECK MOMENTUM")
@@ -101,20 +74,25 @@ class Client:
 
             # Catch potential IndexError early
             if len(momentum_data) < count:
-                print("ERROR: NOT ENOUGH DATA FOR MOMENTUM ANALYSIS!")
+                print("UPDATE: NOT ENOUGH DATA FOR MOMENTUM ANALYSIS!")
                 return
 
-            colors = momentum_data[['color']][-count:]['color'].tolist()       # RAISE INDEX ERROR
+            colors = momentum_data[['momentum_color']][-count:]['momentum_color'].tolist()       # RAISE INDEX ERROR
             squeeze = momentum_data['squeeze_on'].iloc[-1]
             current_position = self.position_type()
 
-            print(f"CURRENT POSITION: {current_position}")
+            print(f"\nCURRENT POSITION: {current_position}")
             print(f"DOTS: {colors}")
             print(f"SQUEEZE: {squeeze}")
 
-            # If no active position and market is in a squeeze, wait
-            if current_position is None and squeeze:
-                print("TREND: MARKET IN SQUEEZE, WAIT!")
+            # If the counter is greater than zero, we recently got in a trade
+            if self.counter > 0:
+                self.counter -= 1
+                return 
+            
+            # If market is in a squeeze, wait for market to expand
+            if squeeze:
+                print("TREND: MARKET IN HIGH SQUEEZE, WAIT!")
                 return
 
             # Determine trade action based on momentum color
@@ -138,7 +116,7 @@ class Client:
             print("\nStep 4: CHECK FOR SUFFICIENT FUNDS")
             print(f"FUNDS: ${self.account_balance}")
             if not self.account_balance >= self.contract_price * self.position_size:
-                print("ERROR: INSUFFICIENT FUNDS!")
+                print("UPDATE: INSUFFICIENT FUNDS!")
                 return
 
             print("\nStep 5: SELECT BEST CONTRACT")
@@ -150,8 +128,10 @@ class Client:
             response = self.buy_position(contract, trade_type)
             if response is None:
                 return
-            
-            print("UPDATE: WAIT FOR NEXT CANDLE!")
+            else:
+                self.counter = 3
+
+            print("\nUPDATE: WAIT FOR NEXT CANDLE...")
         except IndexError:
             return
 
@@ -331,10 +311,10 @@ class Client:
         except IndexError:
             print("PENDING ORDER WAS ACCEPTED, CANCEL DELETE.")
             return
-        
+    
 
 # *******************************************************************************************************************
-# ************************************************ UTILITIES ********************************************************
+# ************************************************** GETTERS ********************************************************
 # *******************************************************************************************************************
     def get_hash(self):
         """
@@ -342,8 +322,7 @@ class Client:
         """
         while True:
             try:
-                self.hash = self.schwab.account_numbers()[0].get('hashValue')
-                break
+                return self.schwab.account_numbers()[0].get('hashValue')
             except Exception:
                 print("Invalid Hash returned, needs new token")
 
@@ -489,23 +468,6 @@ class Client:
         price = 55.0
         self.contract_price = price / 100
         print(f"Price: ${int(price)}")
-    
-
-    def set_stream(self):
-        """
-        
-        """
-        streamer_info = self.schwab.preferences().get('streamerInfo', None)[0] 
-        df = fetch_price_data(self.schwab, 'SPY', 'minute', 3, self.today, self.today)
-        self.stream = Stream(streamer_info, self.check_momentum_chain)         
-        self.stream.set_dataframe(df)
-
-        # Start stream with new data processing function
-        async def data_in_df(data, *args):
-            await process_data(data, self.stream)
-
-        self.stream.start(data_in_df)
-        self.stream = None
 
 
 # ******************************************************************************************************************
@@ -556,3 +518,58 @@ class Client:
         
         # Use a cuurent balanace from the api
         self.sheet.update_sheet(range, self.get_total_cash())
+
+
+# ******************************************************************************************************************
+# ************************************************** STREAM ********************************************************
+# ******************************************************************************************************************
+    def _start_stream(self):
+        """
+        
+        """
+        streamer_info = self.schwab.preferences().get('streamerInfo', None)[0] 
+        df = fetch_price_data(self.schwab, 'SPY', 'minute', 3, self.today, self.today)
+        self.stream = Stream(streamer_info, self.check_momentum_chain)         
+        self.stream.set_dataframe(df)
+
+        # Start stream with new data processing function
+        async def data_in_df(data, *args):
+            await process_data(data, self.stream)
+
+        self.stream.start(data_in_df)
+
+
+    def _check_momentum_chain_automatic(self):
+        # try:
+        #     self._start_stream()
+        # except Exception:
+        def checker():
+            while market_is_open():
+                now = datetime.now()
+                minutes = now.minute
+                seconds = now.second
+
+                # Find the next 3-minute mark
+                next_minute = (minutes // 3 + 1) * 3  
+
+                # If next_minute exceeds 59, reset to 0 and increment hour
+                next_time = now.replace(second=0, microsecond=0)
+
+                if next_minute >= 60:
+                    next_time += timedelta(hours=1)  # Move to the next hour
+                    next_time = next_time.replace(minute=0)  # Reset to 00 minutes
+                else:
+                    next_time = next_time.replace(minute=next_minute)
+
+                # Calculate sleep duration until the next 3-minute mark
+                sleep_duration = (next_time - now).total_seconds()
+
+                print(f"\nUPDATE: SLEEPING FOR {sleep_duration:.2f}s, UNTIL {next_time.strftime('%H:%M')}")
+
+                if sleep_duration > 0:
+                    time.sleep(sleep_duration)  # Ensure we only sleep for non-negative time
+
+                self.check_momentum_chain()
+
+        self.thread = threading.Thread(target=checker, daemon=True)
+        self.thread.start()

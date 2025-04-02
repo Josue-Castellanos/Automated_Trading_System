@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import pandas as pd
 
 def dates():
@@ -191,3 +191,12 @@ def fetch_price_data_from_file(file_path):
         print(f"Error loading market data: {e}")
         return None
     
+
+def market_is_open():
+    """
+    Check if the current time is within market hours
+    """
+    now = datetime.now()
+    market_open = time(6, 30)  # e.g., 6:30 AM
+    market_close = time(12, 58)  # e.g., 12:58 PM
+    return market_open <= now.time() <= market_close

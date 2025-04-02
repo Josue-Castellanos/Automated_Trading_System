@@ -4,8 +4,7 @@ import pandas as pd
 import sys
 # sys.path.append("/home/ubuntu/Automated_Trading_System")
 sys.path.append("/Users/josuecastellanos/Documents/Automated_Trading_System")
-from app.utils import dates
-from datetime import datetime
+from app.utils import dates, datetime
 
 
 def retrieveData():
