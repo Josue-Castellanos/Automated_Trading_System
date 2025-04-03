@@ -46,6 +46,7 @@ class Client:
         self.momentum_call_colors = ['darkblue', 'cyan']
         self.momentum_put_colors = ['purple', 'magenta']
         self.freq = freq     ## <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
+        # self.counter = 3
 
         # Settings
         self.set_settings()
@@ -87,9 +88,9 @@ class Client:
             print(f"SQUEEZE: {squeeze}")
 
             # If the counter is greater than zero, we recently got in a trade
-            if self.counter > 0:
-                self.counter -= 1
-                return 
+            # if self.counter > 0:
+            #     self.counter -= 1
+            #     return 
             
             # If market is in a squeeze, wait for market to expand
             if squeeze:
