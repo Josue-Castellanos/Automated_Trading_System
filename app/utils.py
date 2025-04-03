@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, time
+import yfinance as yf
 import pandas as pd
+
 
 def dates():
     """
@@ -97,74 +99,154 @@ def create_option_dataframe(options):
                     'OI': option.get('openInterest'),
                     'Expiration': exp_date,
                     'Strike': strike,
+                    'IV': option.get('volatility'),
+                    'DTE': option.get('daysToExpiration'),
                     'ITM': option.get('inTheMoney')
                 }
                 data.append(option_data)
     return pd.DataFrame(data)
 
 
-def create_candle_dataframe(candles, freq):
+def create_candle_dataframe(candles, freq, replacement_candles=None):
     """
     Convert API response to a DataFrame.
     """
-    data = []
+    candle_data = []
     aggregated_data = []
 
-    if freq in [1, 5, 10, 15, 30]:
-        aggregated_data = [
-            {
-                'Datetime': convert_epoch_to_datetime(ohlcv['datetime']),
-                'Open': ohlcv.get('open'),
-                'High': ohlcv.get('high'),
-                'Low': ohlcv.get('low'),
-                'Close': ohlcv.get('close'),
-                'Volume': ohlcv.get('volume')
-            }
-            for ohlcv in candles['candles'] if ohlcv.get('datetime') is not None
-        ]
-    else:
-        for ohlcv in candles['candles']:
-            if ohlcv.get('datetime') is None:
-                continue
+    schwab_data = [
+        {
+            'Datetime': convert_epoch_to_datetime(ohlcv['datetime']),
+            'Open': ohlcv.get('open'),
+            'High': ohlcv.get('high'),
+            'Low': ohlcv.get('low'),
+            'Close': ohlcv.get('close'),
+            'Volume': ohlcv.get('volume')
+        }
+        for ohlcv in candles['candles'] if ohlcv.get('datetime') is not None
+    ]
 
-            new_candle = {
-                'Datetime': convert_epoch_to_datetime(ohlcv['datetime']),
-                'Open': ohlcv.get('open'),
-                'High': ohlcv.get('high'),
-                'Low': ohlcv.get('low'),
-                'Close': ohlcv.get('close'),
-                'Volume': ohlcv.get('volume')
-            }
+    if replacement_candles is not None: 
+        # Create main DataFrame and set index
+        df_missing = pd.DataFrame(schwab_data)
+        df_missing.set_index('Datetime', inplace=True)
+    
+        # Change Timezone and format of replacement datetime index
+        replacement_candles = replacement_candles.drop(columns=['Dividends', 'Stock Splits', 'Capital Gains'])
+        replacement_candles.index = pd.to_datetime(replacement_candles.index, unit='ms') - timedelta(hours=3)
+        replacement_candles.index = (replacement_candles.index.tz_localize(None)).strftime("%Y-%m-%d %H:%M:%S")
+        replacement_candles.index = pd.to_datetime(replacement_candles.index)
 
-            data.append(new_candle)
+        
+        # Merge with replacement_candles and re-sort
+        df_complete = pd.concat([df_missing, replacement_candles])
+        df_complete = df_complete.sort_index()
+        df_complete = df_complete.loc[~df_complete.index.duplicated(keep='first')]
 
-            # Check if we have candles to aggregate
-            if len(data) == freq:
+        # **Fill missing datetime indices**
+        expected_freq = '1min'  # Adjust this if needed (1-minute candlesticks assumed)
+        df_complete = df_complete.resample(expected_freq).ffill()  # Forward-fill missing timestamps
+        df_complete = df_complete.iloc[:-1]
+
+        if freq > 1:
+            for index, ohlcv in df_complete.iterrows():
+                new_candle = {
+                    'Datetime': index, 
+                    'Open': ohlcv['Open'],
+                    'High': ohlcv['High'],
+                    'Low': ohlcv['Low'],
+                    'Close': ohlcv['Close'],
+                    'Volume': ohlcv['Volume']
+                }
+                
+                candle_data.append(new_candle)
+
+                # Aggregate candles based on frequency
+                if len(candle_data) == freq:
+                    aggregated_candle = {
+                        'Datetime': candle_data[0]["Datetime"],   # Timestamp of first candle in the group
+                        'Open': candle_data[0]["Open"],           # Open price from first candle
+                        'High': max(candle["High"] for candle in candle_data),
+                        'Low': min(candle["Low"] for candle in candle_data),
+                        'Close': candle_data[-1]["Close"],        # Close price from last candle
+                        'Volume': sum(candle["Volume"] for candle in candle_data),
+                    }
+                    aggregated_data.append(aggregated_candle)
+                    candle_data.clear()  # Reset for next batch
+
+            if len(candle_data) > 0:
                 aggregated_candle = {
-                    'Datetime': data[0]["Datetime"],   # Timestamp of first candle in the group
-                    'Open': data[0]["Open"],           # Open price from first candle
-                    'High': max(candle["High"] for candle in data),
-                    'Low': min(candle["Low"] for candle in data),
-                    'Close': data[-1]["Close"],        # Close price from last candle
-                    'Volume': sum(candle["Volume"] for candle in data),
+                    'Datetime': candle_data[0]["Datetime"],   # Timestamp of first candle in the group
+                    'Open': candle_data[0]["Open"],           # Open price from first candle
+                    'High': max(candle["High"] for candle in candle_data),
+                    'Low': min(candle["Low"] for candle in candle_data),
+                    'Close': candle_data[-1]["Close"],        # Close price from last candle
+                    'Volume': sum(candle["Volume"] for candle in candle_data),
                 }
                 aggregated_data.append(aggregated_candle)
-                data.clear()  # Reset for next batch
-    df = pd.DataFrame(aggregated_data)
+                candle_data.clear() 
+
+            agdf = pd.DataFrame(aggregated_data)
+            agdf.set_index('Datetime', inplace=True)
+            return agdf  
+        return df_complete 
+    df = pd.DataFrame(schwab_data)
     df.set_index('Datetime', inplace=True)
     return df
 
+
+def filter_options(df, type):
+    if type == 'CALL':
+        df = df[::-1]
+
+        indexes_to_drop = []
+        counter = 1
+
+        for index, row in df.iterrows():
+            if row['ITM'] == False:  # Check if 'ITM' column is True
+                continue
+
+            elif row['ITM'] == True and counter == 1:
+                counter -= 1
+                continue
+
+            indexes_to_drop.append(index)
+                
+        # Drop the collected indexes
+        df = df.drop(indexes_to_drop)
+        df = df[::-1]
+        return df
+    else:
+        indexes_to_drop = []
+        counter = 1
+
+        for index, row in df.iterrows():
+            if row['ITM'] == False:  # Check if 'ITM' column is True
+                continue
+
+            elif row['ITM'] == True and counter == 1:
+                counter -= 1
+                continue
+
+            indexes_to_drop.append(index)
+                
+        # Drop the collected indexes
+        df = df.drop(indexes_to_drop)
+        df = df[::-1]
+        return df
+        
 
 def fetch_price_data(schwab, symbol, time, freq, start, end):
     """
     Fetch price history from Schwab API.
     """
-    if freq in [1, 5, 10, 15, 30]:
+    if freq in [5, 10, 15, 30]:
         response = schwab.price_history(symbol, 'day', 1, time, freq, start, end, True, True)
+        df = create_candle_dataframe(response.json(), freq) if response.ok else None
     else:
         response = schwab.price_history(symbol, 'day', 1, time, 1, start, end, True, True)
-    df = create_candle_dataframe(response.json(), freq) if response.ok else None
-    # df.to_csv("/Users/josuecastellanos/Documents/Automated_Trading_System/market.csv", mode='w', index=True)
+        price_history =  yf.Ticker(symbol).history(period='1d', interval='1m', prepost=True)
+        df = create_candle_dataframe(response.json(), freq, price_history) if response.ok else None
     return df
 
 
@@ -174,7 +256,6 @@ def stream_price_data(schwab, symbol, start, end):
     """
     response = schwab.price_history(symbol, 'day', 1, 'minute', 5, start, end, True, True)
     df = create_candle_dataframe(response.json()) if response.ok else None
-    # df.to_csv("/Users/josuecastellanos/Documents/Automated_Trading_System/5min_candles.csv", mode='w', index=True)
     return df
 
 

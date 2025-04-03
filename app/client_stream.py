@@ -1,10 +1,11 @@
 import json
 import time
 import math
+import numpy as np
 import threading
 from schwab import Schwab
 from sheet import Sheet
-from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, market_is_open, datetime, timedelta
+from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, market_is_open, filter_options, datetime, timedelta
 from strategy.ttm_squeeze import ttm_squeeze_momentum
 from stream import Stream, process_data
 
@@ -16,7 +17,7 @@ class Client:
     This class integrates various components such as Schwab API, signals API,
     and a database manager to perform automated trading operations.
     """
-    def __init__(self):
+    def __init__(self, freq):
         """
         This method sets up initial settings, starts background threads
         for handling call and put events, checks for open positions, and starts
@@ -44,7 +45,7 @@ class Client:
         # Strategy
         self.momentum_call_colors = ['darkblue', 'cyan']
         self.momentum_put_colors = ['purple', 'magenta']
-        self.counter = 0
+        self.freq = freq     ## <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
 
         # Settings
         self.set_settings()
@@ -65,11 +66,11 @@ class Client:
             count (int): The index offset for fetching the most recent momentum data.
         """
         try:
-            print("\nStep 1: FETCH DATA")
+            print("\nStep 2: FETCH DATA")
             print(datetime.now())
-            data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', 3, self.today, self.today)
+            data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', self.freq, self.today, self.today)
 
-            print("\nStep 2: CHECK MOMENTUM")
+            print("\nStep 3: CHECK MOMENTUM")
             momentum_data = ttm_squeeze_momentum(data)
 
             # Catch potential IndexError early
@@ -95,7 +96,7 @@ class Client:
                 print("TREND: MARKET IN HIGH SQUEEZE, WAIT!")
                 return
 
-            print("\nStep 3: SELL ACTIVE POSITIONS")
+            print("\nStep 4: SELL ACTIVE POSITIONS")
             # Determine trade action based on momentum color
             if all(color in self.momentum_call_colors for color in colors):
                 trade_type = "CALL"
@@ -113,25 +114,23 @@ class Client:
                 self.sell_position()
 
             # Check funds and enter position
-            print("\nStep 4: CHECK FOR SUFFICIENT FUNDS")
+            print("\nStep 5: CHECK FOR SUFFICIENT FUNDS")
             print(f"FUNDS: ${self.account_balance}")
-            if not self.account_balance >= self.contract_price * self.position_size:
+            if not self.account_balance >= (self.contract_price * 100) * self.position_size:
                 print("UPDATE: INSUFFICIENT FUNDS!")
                 return
 
-            print("\nStep 5: SELECT BEST CONTRACT")
+            print("\nStep 6: SELECT BEST CONTRACT")
             contract = self.best_contract(trade_type)
             if contract is None:
                 return
 
-            print("\nStep 6: ENTER POSITION")
+            print("\nStep 7: ENTER POSITION")
             response = self.buy_position(contract, trade_type)
             if response is None:
                 return
             else:
                 self.counter = 3
-
-            print("\nUPDATE: WAIT FOR NEXT CANDLE...")
         except IndexError:
             return
 
@@ -151,15 +150,35 @@ class Client:
         """
         try:
             print(f"SEARCHING FOR BEST {type} CONTRACT...")
-            options = self.schwab.get_chains('SPY', type, '10', 'TRUE', '', '', '', 'OTM', self.today, self.today)
-            strike_price_df = create_option_dataframe(options)
-            filtered_ask_result = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
+            options = self.schwab.get_chains('SPY', type, '30', 'TRUE', '', '', '', 'OTM', self.today, self.today)
 
-            if type == 'PUT':
-                filtered_ask_result = filtered_ask_result[::-1]
+            options_df = create_option_dataframe(options)
+            strike_price_df = filter_options(options_df, type)
+
+            # Get the Underlying Price
+            stock_price = options['underlyingPrice']
+
+            # Get the ATM Price 
+            atm_price = strike_price_df.iloc[0]['Ask']
+            # Get the ATM Implied Volatility
+            atm_iv = strike_price_df.iloc[0]['IV'] / 100
+            # Get the Days To Expire
+            atm_dte = strike_price_df.iloc[0]['DTE']
+
+            # Calculate ROI for each OTM strike
+            strike_price_df['ROI'] = ((atm_price / strike_price_df['Ask']) - 1) * 100      # ((ATM STRIKE PRICE / OTM STRIKE PRICE) - 1) * 100
+
+            # Expected Move Calculation
+            expected_move = stock_price * atm_iv * np.sqrt(atm_dte / 365)
+            expected_move_round = round(expected_move)
+
+            # Good Contract ranges
+            exp_contracts = strike_price_df.iloc[:expected_move_round + 1][::-1]
+            roi_contracts = strike_price_df.loc[strike_price_df['ROI'] <= 2000]
+            ask_contracts = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
             # RAISE EXCEPTION: If dataframe is empty
-            contract = filtered_ask_result.iloc[0]
+            contract = ask_contracts.iloc[0]
             print("BEST CONTRACT FOUND!")
 
             return contract
@@ -197,7 +216,7 @@ class Client:
                     self.replace_position(order_type=type)
                 else:
                     print("CONTRACT BOUGHT!")
-                    self.account_balance = self.account_balance - (self.contract_price * self.position_size)
+                    self.account_balance = self.account_balance - ((self.contract_price * 100) * self.position_size)
                     return "BOUGHT"
                 max_attempts += 1
 
@@ -465,7 +484,7 @@ class Client:
         Returns:
             None
         """
-        price = 55.0
+        price = 60.0
         self.contract_price = price / 100
         print(f"Price: ${int(price)}")
 
@@ -547,10 +566,9 @@ class Client:
             while market_is_open():
                 now = datetime.now()
                 minutes = now.minute
-                seconds = now.second
 
-                # Find the next 3-minute mark
-                next_minute = (minutes // 3 + 1) * 3  
+                # Find the next n-minute mark
+                next_minute = (minutes // self.freq + 1) * self.freq 
 
                 # If next_minute exceeds 59, reset to 0 and increment hour
                 next_time = now.replace(second=0, microsecond=0)
@@ -561,10 +579,10 @@ class Client:
                 else:
                     next_time = next_time.replace(minute=next_minute)
 
-                # Calculate sleep duration until the next 3-minute mark
+                # Calculate sleep duration until the next n-minute mark
                 sleep_duration = (next_time - now).total_seconds()
 
-                print(f"\nUPDATE: SLEEPING FOR {sleep_duration:.2f}s, UNTIL {next_time.strftime('%H:%M')}")
+                print(f"\Step 1: SLEEPING FOR {sleep_duration:.2f}s, UNTIL {next_time.strftime('%H:%M')}")
 
                 if sleep_duration > 0:
                     time.sleep(sleep_duration)  # Ensure we only sleep for non-negative time

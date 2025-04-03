@@ -41,7 +41,7 @@ def ttm_squeeze_momentum(data, length=20, nBB=2.0, nK_Mid=1.5, nK_Low=2.0, nK_Hi
     return _filter_market_hours(data)
 
 
-def _filter_market_hours(data, market_open="06:30", market_close="13:00"):
+def _filter_market_hours(data, market_open="06:24", market_close="13:00"):
     """
     Filter data for market hours and keep the last N records.
     """
@@ -94,7 +94,6 @@ def plot_ttm_squeeze_momentum(data):
     """
     Plot TTM Squeeze histogram.
     """
-    
     plt.figure(figsize=(15, 6))
     timestamps = data.index.strftime('%H:%M')
 

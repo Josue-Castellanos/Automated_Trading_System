@@ -10,6 +10,7 @@ from app.utils import dates, datetime
 def retrieveData():
     SYMBOL = 'SPY'
     call_data, put_data = _GetOptionsData(SYMBOL)
+    price_history = yf.Ticker(SYMBOL).history()
     return call_data, put_data 
 
 
