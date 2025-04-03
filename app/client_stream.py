@@ -93,9 +93,9 @@ class Client:
             #     return 
             
             # If market is in a squeeze, wait for market to expand
-            if squeeze:
-                print("TREND: MARKET IN HIGH SQUEEZE, WAIT!")
-                return
+            # if squeeze:
+            #     print("TREND: MARKET IN HIGH SQUEEZE, WAIT!")
+            #     return
 
             print("\nStep 4: SELL ACTIVE POSITIONS")
             # Determine trade action based on momentum color
