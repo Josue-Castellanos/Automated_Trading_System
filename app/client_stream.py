@@ -582,7 +582,7 @@ class Client:
                 # Calculate sleep duration until the next n-minute mark
                 sleep_duration = (next_time - now).total_seconds()
 
-                print(f"\Step 1: SLEEPING FOR {sleep_duration:.2f}s, UNTIL {next_time.strftime('%H:%M')}")
+                print(f"\nStep 1: SLEEPING FOR {sleep_duration:.2f}s, UNTIL {next_time.strftime('%H:%M')}")
 
                 if sleep_duration > 0:
                     time.sleep(sleep_duration)  # Ensure we only sleep for non-negative time
