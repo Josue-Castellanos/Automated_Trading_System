@@ -146,7 +146,7 @@ def create_candle_dataframe(candles, freq, replacement_candles=None):
         # **Fill missing datetime indices**
         expected_freq = '1min'  # Adjust this if needed (1-minute candlesticks assumed)
         df_complete = df_complete.resample(expected_freq).ffill()  # Forward-fill missing timestamps
-        df_complete = df_complete.iloc[:-1]
+        # df_complete = df_complete.iloc[:-1]
 
         if freq > 1:
             for index, ohlcv in df_complete.iterrows():

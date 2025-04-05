@@ -485,7 +485,7 @@ class Client:
         Returns:
             None
         """
-        price = 60.0
+        price = 50.0
         self.contract_price = price / 100
         print(f"Price: ${int(price)}")
 
