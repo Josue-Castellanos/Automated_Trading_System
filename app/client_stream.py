@@ -74,7 +74,7 @@ class Client:
             data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', self.freq, self.prev_date, self.today)
 
             print("\nStep 3: CHECK MOMENTUM")
-            momentum_data = ttm_squeeze_momentum(data)
+            momentum_data = ttm_squeeze_momentum(data, self.freq)
 
             # Catch potential IndexError early
             if len(momentum_data) < backtrack:
