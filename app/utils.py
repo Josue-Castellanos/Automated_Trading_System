@@ -279,5 +279,5 @@ def market_is_open():
     """
     now = datetime.now()
     market_open = time(6, 30)  # e.g., 6:30 AM
-    market_close = time(12, 58)  # e.g., 12:58 PM
+    market_close = time(12, 49)  # e.g., 12:58 PM
     return market_open <= now.time() <= market_close

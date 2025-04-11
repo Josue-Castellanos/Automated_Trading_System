@@ -6,7 +6,7 @@ import threading
 from schwab import Schwab
 from sheet import Sheet
 from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, market_is_open, filter_options, datetime, timedelta
-from strategy.ttm_squeeze import ttm_squeeze_momentum
+from strategy.ttm_squeeze import ttm_squeeze_momentum, colors
 from stream import Stream, process_data
 
 
@@ -31,6 +31,7 @@ class Client:
         
         # Sheet
         self.today, self.tomorrow = dates()
+        self.prev_date = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d") if freq >= 10 else self.today
         self.profit_percentage = None             
         self.position_size = None
         self.total_risk = None
@@ -43,8 +44,8 @@ class Client:
         self.hash = self.get_hash()
 
         # Strategy
-        self.momentum_call_colors = ['darkblue', 'cyan']
-        self.momentum_put_colors = ['purple', 'magenta']
+        self.momentum_call_colors = ['darkblue', 'cyan', 'darkcyan', 'deepskyblue', 'paleturquoise', 'lightcyan']
+        self.momentum_put_colors = ['purple', 'magenta', 'darkmagenta', 'mediumvioletred', 'hotpink', 'plum']
         self.freq = freq     ## <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
         # self.counter = 3
 
@@ -58,7 +59,7 @@ class Client:
 # ************************************************************************************************************************
 # **************************************************** MOMENTUM **********************************************************
 # ************************************************************************************************************************
-    def check_momentum_chain(self, count=1):
+    def check_momentum_chain(self, backtrack=1):
         """
         Checks market momentum based on TTM Squeeze indicator.
         Executes trades based on momentum color signals and position status.
@@ -69,29 +70,30 @@ class Client:
         try:
             print("\nStep 2: FETCH DATA")
             print(datetime.now())
-            data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', self.freq, self.today, self.today)
+            
+            data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', self.freq, self.prev_date, self.today)
 
             print("\nStep 3: CHECK MOMENTUM")
             momentum_data = ttm_squeeze_momentum(data)
 
             # Catch potential IndexError early
-            if len(momentum_data) < count:
+            if len(momentum_data) < backtrack:
                 print("UPDATE: NOT ENOUGH DATA FOR MOMENTUM ANALYSIS!")
                 return
 
-            colors = momentum_data[['momentum_color']][-count:]['momentum_color'].tolist()       # RAISE INDEX ERROR
+            colors = momentum_data[['combined_color_5']][-backtrack:]['combined_color_5'].tolist()       # RAISE INDEX ERROR
             squeeze = momentum_data['squeeze_on'].iloc[-1]
-            current_position = self.position_type()
+            current_position = self.get_position_type()
 
             print(f"CURRENT POSITION: {current_position}")
             print(f"DOTS: {colors}")
             print(f"SQUEEZE: {squeeze}")
 
+            # FOR LOWER TIMEFRAME TRADING LIKE 1-3 MIN
             # If the counter is greater than zero, we recently got in a trade
             # if self.counter > 0:
             #     self.counter -= 1
             #     return 
-            
             # If market is in a squeeze, wait for market to expand
             # if squeeze:
             #     print("TREND: MARKET IN HIGH SQUEEZE, WAIT!")
@@ -117,7 +119,7 @@ class Client:
             # Check funds and enter position
             print("\nStep 5: CHECK FOR SUFFICIENT FUNDS")
             print(f"FUNDS: ${self.account_balance}")
-            if not self.account_balance >= (self.contract_price * 100) * self.position_size:
+            if not self.account_balance >= 25.00: # (self.contract_price * 100) * self.position_size:
                 print("UPDATE: INSUFFICIENT FUNDS!")
                 return
 
@@ -151,7 +153,7 @@ class Client:
         """
         try:
             print(f"SEARCHING FOR BEST {type} CONTRACT...")
-            options = self.schwab.get_chains('SPY', type, '30', 'TRUE', '', '', '', 'OTM', self.today, self.today)
+            options = self.schwab.get_chains('SPY', type, '70', 'TRUE', '', '', '', 'OTM', self.today, self.today)
 
             options_df = create_option_dataframe(options)
             strike_price_df = filter_options(options_df, type)
@@ -175,11 +177,11 @@ class Client:
 
             # Good Contract ranges
             exp_contracts = strike_price_df.iloc[:expected_move_round + 1][::-1]
-            roi_contracts = strike_price_df.loc[strike_price_df['ROI'] <= 2000]
+            roi_contracts = strike_price_df.loc[(strike_price_df['ROI'] <= 3000) & (strike_price_df['Delta'] >= 0.05) & (strike_price_df['Ask'] >= 0.10)][::-1]
             ask_contracts = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
             # RAISE EXCEPTION: If dataframe is empty
-            contract = ask_contracts.iloc[0]
+            contract = roi_contracts.iloc[0]
             print("BEST CONTRACT FOUND!")
 
             return contract
@@ -212,12 +214,12 @@ class Client:
             max_attempts = 0
             while max_attempts < 4:
                 time.sleep(5)
-                if self.position_type() is None:
+                if self.get_position_type() is None:
                     print(f"BUY ORDER REPLACEMENT: {max_attempts + 1}.")
                     self.replace_position(order_type=type)
                 else:
                     print("CONTRACT BOUGHT!")
-                    self.account_balance = self.account_balance - ((self.contract_price * 100) * self.position_size)
+                    self.account_balance = self.account_balance - ((0.25 * 100) * self.position_size)
                     return "BOUGHT"
                 max_attempts += 1
 
@@ -261,7 +263,7 @@ class Client:
         max_attempts = 0
         while True:
             time.sleep(5)
-            if self.position_type() is None:
+            if self.get_position_type() is None:
                 print("CONTRACT SOLD!")
                 break
             else:
@@ -347,7 +349,7 @@ class Client:
                 print("Invalid Hash returned, needs new token")
 
 
-    def position_type(self):
+    def get_position_type(self):
         """
         Determine the type of the current open position.
 
@@ -586,7 +588,7 @@ class Client:
                 print(f"\nStep 1: SLEEPING FOR {sleep_duration:.2f}s, UNTIL {next_time.strftime('%H:%M')}")
 
                 if sleep_duration > 0:
-                    time.sleep(sleep_duration)  # Ensure we only sleep for non-negative time
+                    time.sleep(sleep_duration)
 
                 self.check_momentum_chain()
 

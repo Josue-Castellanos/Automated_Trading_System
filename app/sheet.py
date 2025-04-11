@@ -27,7 +27,6 @@ class Sheet:
         credentials, and other necessary attributes.
         """
         self.settings = Settings()
-        self.now = datetime.now().strftime("%-m/%-d/%Y")
         self.SERVICES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
         self.creds_performance = service_account.Credentials.from_service_account_file(self.settings.PERFORMANCE_PATH, scopes=self.SERVICES)
 

@@ -39,16 +39,23 @@ def ttm_squeeze_momentum(data, freq, date=0, length=20, nBB=2.0, nK_Mid=1.5, nK_
     data['macd'] = data['emaFast'] - data['emaSlow']
     data['signal'] = data['macd'].ewm(span=signal, adjust=False).mean()
     data['histogram'] = data['macd'] - data['signal']
-    data['macd_hist_color'] = macd_colors(data['histogram'])
-
+    data['macd_color'] = macd_colors(data['histogram'])
+    
+    # Stochastic
+    data = stochastic_hull(data)
+    
     # Momentum
     data["momentum"] = data["Close"].rolling(length).apply(linear_regression, raw=True)
     data['momentum_color'] = [momentum_colors(data, i) for i in range(len(data))]
 
-    data['combined_color'] = combined_colors(data)
+    # data['combined_color'] = combined_colors(data)
+    # data['combined_color_1'] = combined_colors_1(data)
+    # data['combined_color_2'] = combined_colors_2(data)
+    # data['combined_color_3'] = combined_colors_3(data)
+    # data['combined_color_4'] = combined_colors_4(data)
+    data['combined_color_5'] = combined_colors_5(data)
+    # data = enhanced_combined_indicator(data)
     
-    data = enhanced_combined_indicator(data)
-
     return filter_market_hours(data, freq, date)
 
 
@@ -62,8 +69,9 @@ def filter_market_hours(data, freq, date, market_open="06:30", market_close="13:
 
     if freq in [12, 16]:
         market_open="06:24"
-    if freq in [14]:
+    if freq in [11, 14]:
         market_open="06:26"
+
 
     unique_dates = data.index.normalize().unique()
     unique_dates = [d.date() for d in unique_dates]
@@ -83,109 +91,6 @@ def linear_regression(close_prices):
 
 
 ## TESTING ##
-def enhanced_combined_indicator(data, primary_length=20, confirmation_length=50, volume_threshold=1.2, smooth_period=3):
-    """
-    Enhanced combined indicator with:
-    - Multi-timeframe confirmation
-    - Volume weighting
-    - Trend strength measurement
-    - Dynamic smoothing
-    - False signal filtering
-    """
-    # Calculate primary indicators
-    
-    # Add confirmation timeframe momentum
-    data['confirmation_momentum'] = data["Close"].rolling(confirmation_length).apply(linear_regression, raw=True)
-    
-    # Calculate volume profile
-    data['volume_ma'] = data['Volume'].rolling(primary_length).mean()
-    data['volume_spike'] = data['Volume'] > (data['volume_ma'] * volume_threshold)
-    
-    # Calculate trend strength (0-100 scale)
-    data['momentum_strength'] = data['momentum'].abs() / data['momentum'].rolling(primary_length).std()
-    data['macd_strength'] = data['histogram'].abs() / data['histogram'].rolling(primary_length).std()
-    data['combined_strength'] = (data['momentum_strength'] + data['macd_strength']) / 2
-    
-    # Dynamic smoothing based on volatility
-    # atr = data['atr']
-    # smooth_window = np.where(atr > atr.quantile(0.7), smooth_period * 2, 
-    #                      np.where(atr < atr.quantile(0.3), 1, smooth_period))
-    # data['smoothed_momentum'] = data['momentum'].rolling(window=smooth_window).mean()
-    atr_quantiles = data['atr'].quantile([0.3, 0.7])
-    data['smoothed_momentum'] = np.where(
-        data['atr'] > atr_quantiles[0.7],
-        data['momentum'].rolling(smooth_period * 2).mean(),
-        np.where(
-            data['atr'] < atr_quantiles[0.3],
-            data['momentum'],
-            data['momentum'].rolling(smooth_period).mean()
-        )
-    )
-    # Generate enhanced colors
-    data['enhanced_color'] = generate_enhanced_colors(data)
-    
-    return data
-
-
-def generate_enhanced_colors(data):
-    colors = []
-    for i in range(len(data)):
-        # Current values
-        mom = data['momentum'].iloc[i]
-        macd = data['histogram'].iloc[i]
-        conf_mom = data['confirmation_momentum'].iloc[i]
-        vol_spike = data['volume_spike'].iloc[i]
-        strength = data['combined_strength'].iloc[i]
-        squeeze = data['squeeze_color'].iloc[i]
-        
-        # Direction checks
-        primary_bullish = mom > 0 and macd > 0
-        primary_bearish = mom < 0 and macd < 0
-        confirmation_bullish = conf_mom > 0
-        confirmation_bearish = conf_mom < 0
-        
-        # Strength thresholds (adjust based on your asset)
-        strong_threshold = 1.5
-        weak_threshold = 0.5
-        
-        # Core logic
-        if primary_bullish and confirmation_bullish:
-            if strength > strong_threshold and vol_spike:
-                color = 'darkgreen'  # Very strong bullish
-            elif strength > weak_threshold:
-                color = 'green'      # Strong bullish
-            else:
-                color = 'lime'       # Moderate bullish
-                
-        elif primary_bearish and confirmation_bearish:
-            if strength > strong_threshold and vol_spike:
-                color = 'darkred'    # Very strong bearish
-            elif strength > weak_threshold:
-                color = 'red'        # Strong bearish
-            else:
-                color = 'orangered'  # Moderate bearish
-                
-        # Divergence detection
-        elif mom > 0 and macd < 0 and conf_mom > 0:
-            color = 'gold' if squeeze else 'yellow'  # Bullish divergence
-        elif mom < 0 and macd > 0 and conf_mom < 0:
-            color = 'violet' if squeeze else 'pink'   # Bearish divergence
-            
-        # Squeeze special cases
-        elif squeeze == 'gold' and vol_spike:
-            color = 'gold'  # High probability breakout
-        elif squeeze and not (primary_bearish or primary_bullish):
-            color = 'gray'  # Squeeze but no clear direction
-            
-        # Default neutral
-        else:
-            color = 'gray'
-            
-        colors.append(color)
-    
-    return colors
-
-
 def combined_colors(data):
     """
     Create a combined color indicator using both momentum and MACD signals.
@@ -201,7 +106,7 @@ def combined_colors(data):
     for i in range(len(data)):
         # Get current values
         mom_color = data['momentum_color'].iloc[i]
-        macd_color = data['macd_hist_color'].iloc[i]
+        macd_color = data['macd_color'].iloc[i]
         mom_value = data['momentum'].iloc[i]
         macd_hist = data['histogram'].iloc[i]
         
@@ -215,35 +120,517 @@ def combined_colors(data):
         macd_strength = 'strong' if (macd_color == 'cyan' and macd_trend == 'up') or \
                                    (macd_color == 'magenta' and macd_trend == 'down') else 'weak'
         
-        # Combined Logic Color
+        # Combined logic
         if mom_trend == 'up' and macd_trend == 'up':
             if mom_strength == 'strong' and macd_strength == 'strong':
-                combined_colors.append(mom_color) #cyan # Strong bullish
+                combined_colors.append('cyan')                  # Strong bullish
             else:
-                combined_colors.append(macd_color)  #darkblue') # Moderate bullish
+                # Additional bullish confirmation metrics
+                price_above_ema20 = data['Close'].iloc[i] > data['Close'].ewm(span=20).mean().iloc[i]
+                volume_spike = data['Volume'].iloc[i] > data['Volume'].rolling(20).mean().iloc[i] * 1.1
+                new_high = data['Close'].iloc[i] == data['Close'].rolling(5).max().iloc[i]
+                atr_ratio = data['atr'].iloc[i] / data['atr'].rolling(20).mean().iloc[i]
+                volatility_ok = 0.8 < atr_ratio < 1.3  # Optimal volatility range for uptrends
+                
+                # Calculate bullish confirmation score (0-5 points)
+                confirmation_score = sum([
+                    price_above_ema20,
+                    volume_spike,
+                    new_high,
+                    volatility_ok,
+                    (mom_strength == 'strong' or macd_strength == 'strong')  # At least one strong
+                ])
+                
+                # Moderate bullish cases        
+                if confirmation_score >= 4:
+                    combined_colors.append(macd_color)   # Highly confirmed moderate bullish
+                elif confirmation_score >= 3:
+                    combined_colors.append(macd_color) # Medium confidence
+                elif confirmation_score >= 2:
+                    combined_colors.append(macd_color)    # Weak but valid bullish
+                else:
+                    combined_colors.append(macd_color)  #'palegreen')     # Unconfirmed bullish
+                    
         elif mom_trend == 'down' and macd_trend == 'down':
             if mom_strength == 'strong' and macd_strength == 'strong':
-                combined_colors.append('white')    # Strong bearish
+                combined_colors.append('magenta')          
             else:
-                combined_colors.append(macd_color)  #mom_color)  # Moderate bearish
-        else:
-            # Mixed signals - look for squeeze confirmation
-            if data['squeeze_color'].iloc[i] is not None:
-                if mom_value > 0:  # Favor bullish if momentum is positive
-                    combined_colors.append(macd_color)  #mom_color)
+                # Calculate BEARISH confirmation metrics (adjusted for downtrends)
+                price_below_ema20 = data['Close'].iloc[i] < data['Close'].ewm(span=20).mean().iloc[i]
+                volume_spike = data['Volume'].iloc[i] > data['Volume'].rolling(20).mean().iloc[i] * 1.1
+                atr_ratio = data['atr'].iloc[i] / data['atr'].rolling(20).mean().iloc[i]
+                volatility_ok = 0.9 < atr_ratio < 2.0  # Higher threshold for bear markets
+                momentum_accelerating = data['momentum'].iloc[i] < data['momentum'].iloc[i-1]
+                new_low = data['Close'].iloc[i] == data['Close'].rolling(5).min().iloc[i]
+                
+                # BEARISH confirmation score (0-5 points)
+                confirmation_score = sum([
+                    price_below_ema20,
+                    volume_spike,
+                    volatility_ok,
+                    momentum_accelerating,
+                    new_low
+                ])
+
+                # Simplified classification
+                if confirmation_score >= 4:
+                    if mom_strength == 'strong':
+                        combined_colors.append('skyblue') 
+                    elif mom_strength == 'weak' and macd_strength == 'weak':
+                        combined_colors.append('darkred')
+                    elif macd_strength == 'strong':
+                        combined_colors.append('gray')  
+                    else:
+                        combined_colors.append('purple')   # DONME
+                elif confirmation_score >= 3:
+                    if mom_strength == 'strong':
+                        combined_colors.append('yellow')              
+                    elif mom_strength == 'weak' and macd_strength == 'weak':
+                        combined_colors.append('red')
+                    elif macd_strength == 'strong':
+                        combined_colors.append('darkblue')      
+                    else:
+                       combined_colors.append('white') 
+                elif confirmation_score >= 2:
+                    if mom_strength == 'strong':
+                        combined_colors.append('gold')  
+                    elif mom_strength == 'weak' and macd_strength == 'weak':
+                        combined_colors.append('violet')
+                    elif macd_strength == 'strong':
+                        combined_colors.append('lime')     
+                    else:
+                        combined_colors.append('lime')   #macd_color) 
                 else:
-                    combined_colors.append(macd_color)   #macd_color)
-            else:
-                combined_colors.append(macd_color)  # Neutral
-    
+                    combined_colors.append('darkblue')
+        # elif mom_trend == 'up' and macd_trend == 'down':
+        #     if mom_strength == 'weak' and macd_strength == 'weak':
+        #         combined_colors.append(macd_color) # Strong bullish
+        #     elif mom_strength == 'weak' and macd_strength == 'strong':
+        #         combined_colors.append('purple') #cyan # Strong bullish
+        #     elif mom_strength == 'strong' and macd_strength == 'weak':
+        #         combined_colors.append('purple')
+        #     elif mom_strength == 'strong' and macd_strength == 'strong':
+        #         combined_colors.append('magenta')
+        #     else:
+        #         combined_colors.append('red')  #darkblue') # Moderate bullish 
+        # elif mom_trend == 'down' and macd_trend == 'up':
+        #     if mom_strength == 'strong' and macd_strength == 'strong':
+        #         combined_colors.append('cyan')  # Strong bullish
+        #     elif mom_strength == 'weak' and macd_strength == 'strong':
+        #         combined_colors.append('cyan')  # Strong bullish
+        #     elif mom_strength == 'strong' and macd_strength == 'weak':
+        #         combined_colors.append('lime') #cyan # Strong bullish
+        #     elif mom_strength == 'weak' and macd_strength == 'weak':
+        #         combined_colors.append('darkgreen') #cyan # Strong bullish
+        #     else:
+        #         combined_colors.append('yellow')  #macd_color) # Moderate bullish
+        else:
+            combined_colors.append('white')
     return combined_colors
+
+
+def combined_colors_1(data):
+    """
+    Enhanced combined color indicator with:
+    - Hull-weighted Stochastic Oscillator (8,2,85,15)
+    - Breakout signals on FastD crosses
+    - Cyan/magenta color scheme for all signals
+    """
+    # Define color spectrum
+    colors = {
+        # Stochastic-specific colors
+        'stoch_overbought': 'yellow',
+        'stoch_oversold': 'yellow',
+        'stoch_bullish_break': 'yellow',
+        'stoch_bearish_break': 'yellow',
+        
+        # Main signal colors (same as before)
+        'ultra_bullish': 'darkcyan',
+        'strong_bullish': 'cyan',
+        'confirmed_bullish': 'deepskyblue',
+        'moderate_bullish': 'lightcyan',
+        'weak_bullish': 'paleturquoise',
+        'ultra_bearish': 'darkmagenta',
+        'strong_bearish': 'magenta',
+        'confirmed_bearish': 'mediumvioletred',
+        'moderate_bearish': 'hotpink',
+        'weak_bearish': 'plum',
+        'neutral': 'lavender'
+    }
+    
+    combined_colors = []
+    
+    for i in range(len(data)):
+        # Get current values
+        mom_color = data['momentum_color'].iloc[i]
+        macd_color = data['macd_color'].iloc[i]
+        stoch_k = data['stoch_k'].iloc[i]
+        stoch_d = data['stoch_d'].iloc[i]
+        stoch_signal = None
+        
+        # Detect Stochastic breakouts (using FastD)
+        stoch_breakout = None
+        overbought = 90
+        oversold = 10
+        
+        # Current state
+        is_overbought = stoch_d >= overbought
+        is_oversold = stoch_d <= oversold
+        
+        # Cross events
+        cross_above_oversold = stoch_d > oversold and data['stoch_d'].iloc[i-1] <= oversold
+        cross_below_overbought = stoch_d < overbought and data['stoch_d'].iloc[i-1] >= overbought
+        
+        # Determine Stochastic signal
+        if cross_above_oversold:
+            stoch_breakout = 'bullish_break'
+            stoch_signal = 'oversold'
+        elif cross_below_overbought:
+            stoch_breakout = 'bearish_break'
+            stoch_signal = 'overbought'
+        elif is_overbought:
+            stoch_signal = 'overbought'
+        elif is_oversold:
+            stoch_signal = 'oversold'
+        elif stoch_k > stoch_d:
+            stoch_signal = 'bullish'
+        elif stoch_k < stoch_d:
+            stoch_signal = 'bearish'
+        else:
+            stoch_signal = 'neutral'
+        
+        # Main trend determination (unchanged from previous)
+        mom_trend = 'up' if mom_color in ['cyan', 'darkblue'] else 'down'
+        mom_strength = 'strong' if (mom_color == 'cyan' and mom_trend == 'up') or \
+                                    (mom_color == 'magenta' and mom_trend == 'down') else 'weak'
+        
+        macd_trend = 'up' if macd_color in ['cyan', 'darkblue'] else 'down'
+        macd_strength = 'strong' if (macd_color == 'cyan' and macd_trend == 'up') or \
+                                    (macd_color == 'magenta' and macd_trend == 'down') else 'weak'
+
+        # Common metrics (unchanged)
+        price_above_ema20 = data['Close'].iloc[i] > data['Close'].ewm(span=20).mean().iloc[i]
+        price_below_ema20 = not price_above_ema20
+        atr_ratio = data['atr'].iloc[i] / data['atr'].rolling(20).mean().iloc[i]
+        bullish_candle = data['Close'].iloc[i] > data['Open'].iloc[i]
+        bearish_candle = not bullish_candle
+
+        # BULLISH CASES ==============================================
+        if mom_trend == 'up' and macd_trend == 'up':
+            # Enhanced bullish confirmation with Stochastic
+            stoch_bullish = stoch_breakout == 'bullish_break' or \
+                            (stoch_signal in ['oversold', 'bullish'])
+            
+            bull_score = sum([
+                price_above_ema20,
+                data['Volume'].iloc[i] > data['Volume'].rolling(20).mean().iloc[i] * 1.2,
+                data['Close'].iloc[i] == data['Close'].rolling(10).max().iloc[i],
+                0.8 < atr_ratio < 1.5,
+                bullish_candle,
+                data['momentum'].iloc[i] > data['momentum'].iloc[i-1],
+                data['histogram'].iloc[i] > data['histogram'].iloc[i-1],
+                stoch_bullish  # Additional point for stochastic confirmation
+            ])
+            
+            # Apply color based on score and Stochastic breakout
+            if stoch_breakout == 'bullish_break':
+                combined_colors.append(colors['stoch_bullish_break'])
+            elif mom_strength == 'strong' and macd_strength == 'strong':
+                if bull_score >= 7:
+                    combined_colors.append(colors['ultra_bullish'])
+                elif bull_score >= 5:
+                    combined_colors.append(colors['strong_bullish'])
+                else:
+                    combined_colors.append(colors['confirmed_bullish'])
+            else:
+                if bull_score >= 6:
+                    combined_colors.append(colors['confirmed_bullish'])
+                elif bull_score >= 4:
+                    combined_colors.append(colors['moderate_bullish'])
+                else:
+                    combined_colors.append(colors['weak_bullish'])
+
+        # BEARISH CASES ==============================================
+        elif mom_trend == 'down' and macd_trend == 'down':
+            # Enhanced bearish confirmation with Stochastic
+            stoch_bearish = stoch_breakout == 'bearish_break' or \
+                            (stoch_signal in ['overbought', 'bearish'])
+            
+            bear_score = sum([
+                price_below_ema20,
+                data['Volume'].iloc[i] > data['Volume'].rolling(20).mean().iloc[i] * 1.3,
+                data['Close'].iloc[i] == data['Close'].rolling(10).min().iloc[i],
+                1.0 < atr_ratio < 2.5,
+                bearish_candle,
+                data['momentum'].iloc[i] < data['momentum'].iloc[i-1],
+                data['histogram'].iloc[i] < data['histogram'].iloc[i-1],
+                stoch_bearish  # Additional point for stochastic confirmation
+            ])
+            
+            # Apply color based on score and Stochastic breakout
+            if stoch_breakout == 'bearish_break':
+                combined_colors.append(colors['stoch_bearish_break'])
+            elif mom_strength == 'strong' and macd_strength == 'strong':
+                if bear_score >= 7:
+                    combined_colors.append(colors['ultra_bearish'])
+                elif bear_score >= 5:
+                    combined_colors.append(colors['strong_bearish'])
+                else:
+                    combined_colors.append(colors['confirmed_bearish'])
+            else:
+                if bear_score >= 6:
+                    combined_colors.append(colors['confirmed_bearish'])
+                elif bear_score >= 4:
+                    combined_colors.append(colors['moderate_bearish'])
+                else:
+                    combined_colors.append(colors['weak_bearish'])
+
+        # MIXED CASES ===============================================
+        elif mom_trend == 'up' and macd_trend == 'down':
+            # Let Stochastic breakout decide
+            if stoch_breakout == 'bullish_break':
+                combined_colors.append(colors['stoch_bullish_break'])
+            elif stoch_breakout == 'bearish_break':
+                combined_colors.append(colors['stoch_bearish_break'])
+            elif stoch_signal == 'oversold':
+                combined_colors.append(colors['moderate_bullish'])
+            elif stoch_signal == 'overbought':
+                combined_colors.append(colors['weak_bearish'])
+            else:
+                combined_colors.append(colors['neutral'])
+                
+        elif mom_trend == 'down' and macd_trend == 'up':
+            # Let Stochastic breakout decide
+            if stoch_breakout == 'bullish_break':
+                combined_colors.append(colors['stoch_bullish_break'])
+            elif stoch_breakout == 'bearish_break':
+                combined_colors.append(colors['stoch_bearish_break'])
+            elif stoch_signal == 'oversold':
+                combined_colors.append(colors['moderate_bullish'])
+            elif stoch_signal == 'overbought':
+                combined_colors.append(colors['weak_bearish'])
+            else:
+                combined_colors.append(colors['neutral'])
+                
+        else:
+            combined_colors.append(colors['neutral'])
+                
+    return combined_colors
+
+
+def combined_colors_5(data):
+    """
+    Enhanced combined color indicator with:
+    - Cyan variations for bullish signals
+    - Magenta variations for bearish signals
+    - Advanced confirmation metrics for all cases
+    """    
+    colors = {
+        # Bullish (cyan spectrum)
+        'ultra_bullish': 'darkcyan',
+        'strong_bullish': 'cyan',
+        'confirmed_bullish': 'deepskyblue',
+        'moderate_bullish': 'paleturquoise',
+        'weak_bullish': 'lightcyan',
+        'bullish': 'darkblue',
+        
+        # Bearish (magenta spectrum)
+        'ultra_bearish': 'darkmagenta',
+        'strong_bearish': 'magenta',
+        'confirmed_bearish': 'mediumvioletred',
+        'moderate_bearish': 'hotpink',
+        'weak_bearish': 'plum',
+        'bearish': 'purple'
+    }
+    
+    combined_colors = []
+    
+    for i in range(len(data)):  # Start from 1 to allow lookback
+        # try:
+        # Get current values
+        mom_color = data['momentum_color'].iloc[i]
+        macd_color = data['macd_color'].iloc[i]
+        mom_value = data['momentum'].iloc[i]
+        macd_hist = data['histogram'].iloc[i]
+        
+        # Current state
+        is_overbought = data['stoch_overbought'].iloc[i]
+        is_oversold = data['stoch_oversold'].iloc[i]
+        
+        # Cross events
+        cross_above_oversold = data['stoch_bearish_reverse'].iloc[i]
+        cross_below_overbought = data['stoch_bullish_reverse'].iloc[i]
+        cross_above_overbought= data['stoch_bullish_break'].iloc[i]
+        cross_below_oversold = data['stoch_bearish_break'].iloc[i]
+        
+        # Determine trend direction and strength
+        mom_trend = 'up' if mom_color in ['cyan', 'darkblue'] else 'down'
+        mom_strength = 'strong' if (mom_color == 'cyan' and mom_trend == 'up') or \
+                                    (mom_color == 'magenta' and mom_trend == 'down') else 'weak'
+        
+        macd_trend = 'up' if macd_color in ['cyan', 'magenta'] else 'down'
+        macd_strength = 'strong' if (macd_color == 'cyan' and macd_trend == 'up') or \
+                                    (macd_color == 'magenta' and macd_trend == 'down') else 'weak'
+
+        # Common metrics
+        price_above_ema20 = data['Close'].iloc[i] > data['Close'].ewm(span=20).mean().iloc[i]
+        price_below_ema20 = not price_above_ema20
+        atr_ratio = data['atr'].iloc[i] / data['atr'].rolling(20).mean().iloc[i]
+        bullish_candle = data['Close'].iloc[i] > data['Open'].iloc[i]
+        bearish_candle = not bullish_candle
+        
+        # STOCHASTIC CASES ==============================================
+        # if is_overbought and cross_above_overbought:
+        #     combined_colors.append('yellow')
+        # elif is_overbought:
+        #     combined_colors.append('yellow')
+        # elif is_oversold and cross_below_oversold:
+        #     combined_colors.append('gold')
+        # elif is_oversold:
+        #     combined_colors.append('gold')
+        
+        # BULLISH CASES ==============================================
+        if mom_trend == 'up' and macd_trend == 'up':
+            # Enhanced bullish confirmation
+            volume_spike = data['Volume'].iloc[i] > data['Volume'].rolling(20).mean().iloc[i] * 1.2
+            new_high = data['Close'].iloc[i] == data['Close'].rolling(10).max().iloc[i]
+            volatility_ok = 0.8 < atr_ratio < 1.5
+            mom_increasing = mom_value > data['momentum'].iloc[i-1]
+            
+            bull_score = sum([
+                price_above_ema20,
+                volume_spike,
+                new_high,
+                volatility_ok,
+                bullish_candle,
+                mom_increasing,
+                macd_hist > data['histogram'].iloc[i-1]  # MACD strengthening
+            ])
+            
+            if mom_strength == 'strong' and macd_strength == 'strong':
+                if bull_score >= 6:
+                    combined_colors.append(colors['ultra_bullish'])     # ultra_bullish
+                elif bull_score >= 4:
+                    combined_colors.append(colors['strong_bullish'])    # strong_bullish
+                else:
+                    combined_colors.append(colors['confirmed_bullish']) # confirmed_bullish
+            else:
+                if bull_score >= 5:
+                    combined_colors.append(colors['confirmed_bullish']) # confirmed_bullish
+                elif bull_score >= 3:
+                    combined_colors.append(macd_color)                   # moderate_bullish
+                else:
+                    combined_colors.append(macd_color)                  # weak_bullish
+
+        # BEARISH CASES ==============================================
+        elif mom_trend == 'down' and macd_trend == 'down':
+            # Enhanced bearish confirmation
+            volume_spike = data['Volume'].iloc[i] > data['Volume'].rolling(20).mean().iloc[i] * 1.3
+            new_low = data['Close'].iloc[i] == data['Close'].rolling(10).min().iloc[i]
+            volatility_ok = 1.0 < atr_ratio < 2.5
+            mom_decreasing = mom_value < data['momentum'].iloc[i-1]
+            
+            bear_score = sum([
+                price_below_ema20,
+                volume_spike,
+                new_low,
+                volatility_ok,
+                bearish_candle,
+                mom_decreasing,
+                macd_hist < data['histogram'].iloc[i-1]  # MACD weakening
+            ])
+            
+            if mom_strength == 'strong' and macd_strength == 'strong':
+                if bear_score >= 6:
+                    combined_colors.append(colors['ultra_bearish'])     # ultra_bearish
+                elif bear_score >= 4:
+                    combined_colors.append(colors['strong_bearish'])    # strong_bearish
+                else:
+                    combined_colors.append(colors['confirmed_bearish']) # confirmed_bearish
+            else:
+                if bear_score >= 5:
+                    combined_colors.append(colors['confirmed_bearish']) # confirmed_bearish
+                elif bear_score >= 4:
+                    combined_colors.append(colors['moderate_bullish'])  # macd_color    # moderate_bearish
+                elif bear_score >= 3:
+                    if mom_strength == 'strong' and macd_strength == 'weak' and volume_spike:
+                        combined_colors.append('red')     # mom_color   
+                    elif mom_strength == 'strong':
+                        combined_colors.append(colors['moderate_bearish']) # mom_color
+                    elif macd_strength =='strong' and mom_strength == 'weak':
+                        combined_colors.append('black')
+                    elif macd_strength =='weak' and mom_strength == 'weak':
+                        combined_colors.append(colors['weak_bearish'])
+                    else:
+                        combined_colors.append('white')
+                else:
+                    combined_colors.append(colors['moderate_bullish'])            
+
+        # MIXED CASES ===============================================
+        elif mom_trend == 'up' and macd_trend == 'down':
+            # Bullish momentum, bearish MACD
+            if mom_strength == 'strong':
+                combined_colors.append(colors['moderate_bearish']) # macd_color     # moderate_bullish
+            elif macd_strength == 'strong':
+                combined_colors.append(colors['weak_bearish'])          # weak_bearish
+            else:
+                combined_colors.append(macd_color)                      # neautral
+                
+        elif mom_trend == 'down' and macd_trend == 'up':
+            # Bearish momentum, bullish MACD
+            if macd_strength == 'strong' and mom_strength =='strong':
+                combined_colors.append(mom_color)
+            elif macd_strength == 'strong':
+                combined_colors.append(mom_color)                       # moderate_bullish
+            elif mom_strength == 'strong':
+                combined_colors.append(colors['weak_bearish'])   #mom_color       # weak_bearish
+            else:
+                combined_colors.append(macd_color)                      # neautral
+                
+        else:
+            combined_colors.append('yellow')
+        
+    return combined_colors
+
+
+def stochastic_hull(data, k_period=8, d_period=2, overbought=90, oversold=10):
+    """
+    Calculate Hull-weighted Stochastic Oscillator
+    """
+    # Calculate Weighted Moving Average (as proxy for Hull)
+    def hull_ma(series, period):
+        wma1 = wma(series, period//2)
+        wma2 = wma(series, period)
+        return wma(2 * wma1 - wma2, int(np.sqrt(period)))
+
+    def wma(series, period):
+        weights = np.arange(1, period+1)
+        return series.rolling(period).apply(lambda x: np.dot(x, weights)/weights.sum(), raw=True)
+    
+    # Calculate raw Stochastic values
+    low_min = data['Low'].rolling(window=k_period).min()
+    high_max = data['High'].rolling(window=k_period).max()
+    raw_stoch = 100 * ((data['Close'] - low_min) / (high_max - low_min))
+    
+    # Apply Hull weighting (using WMA as approximation)
+    data['stoch_k'] = hull_ma(raw_stoch, k_period)
+    data['stoch_d'] = hull_ma(data['stoch_k'], d_period)
+    
+    # Detect breakouts
+    data['stoch_overbought'] = data['stoch_d'] >= overbought
+    data['stoch_oversold'] = data['stoch_d'] <= oversold
+    data['stoch_bullish_break'] = (data['stoch_d'] > overbought) & (data['stoch_d'].shift(1) <= overbought)
+    data['stoch_bearish_break'] = (data['stoch_d'] < oversold) & (data['stoch_d'].shift(1) >= oversold)
+    data['stoch_bearish_reverse'] = (data['stoch_d'] > oversold) & (data['stoch_d'].shift(1) <= oversold)
+    data['stoch_bullish_reverse'] = (data['stoch_d'] < overbought) & (data['stoch_d'].shift(1) >= overbought)
+    return data
 
 
 def squeeze_colors(row):
     if row['squeezeHigh'] < 0 and row['squeezeMid'] < 0 and row['squeezeBlue'] < 0:
         return 'gold'  # Strong Squeeze
     elif row['squeezeMid'] < 0 and row['squeezeBlue'] < 0:
-        return 'grey'  # Medium Squeeze
+        return 'black'  # Medium Squeeze
     elif row['squeezeBlue'] < 0:
         return 'blue'  # Weak Squeeze
     else:
@@ -291,12 +678,11 @@ def plot_ttm_squeeze_momentum(data):
     timestamps = data.index.strftime('%H:%M')
 
     for i in range(len(data)):
-        plt.bar(i, data['histogram'].iloc[i], color=data['momentum_color'].iloc[i], width=0.6, label='_nolegend_')
+        plt.bar(i, data['histogram'].iloc[i], color=data['macd_color'].iloc[i], width=0.6, label='_nolegend_')
 
     for i, (timestamp, row) in enumerate(data.iterrows()):
         # Plot momentum as a dot
-        plt.scatter(i, row['momentum'], color=row['combined_color'], label="_nolegend_")
-        plt.scatter(i, row['momentum'], color=row['enhanced_color'], s=7, label="_nolegend_")
+        plt.scatter(i, row['momentum'], color=row['combined_color_5'], label="_nolegend_")
 
 
         if row['squeeze_color'] is not None:
