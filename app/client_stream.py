@@ -6,7 +6,7 @@ import threading
 from schwab import Schwab
 from sheet import Sheet
 from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, market_is_open, filter_options, datetime, timedelta
-from strategy.ttm_squeeze import ttm_squeeze_momentum, colors
+from strategy.ttm_squeeze import ttm_squeeze_momentum
 from stream import Stream, process_data
 
 
