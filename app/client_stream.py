@@ -86,7 +86,7 @@ class Client:
 
             print("\nStep 3: CHECK MOMENTUM")
             stoch_data = stochastic_hull(data)
-            momentum_data = ttm_squeeze_momentum(stoch_data)
+            momentum_data = ttm_squeeze_momentum(stoch_data, self.freq)
 
             # Catch potential IndexError early
             if len(momentum_data) < backtrack:
