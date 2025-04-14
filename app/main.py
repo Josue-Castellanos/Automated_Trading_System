@@ -26,7 +26,7 @@ class Scheduler:
     def start(self):
         if self.client is None:
             print("Client started\n")
-            frequency = 11                         ## <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
+            frequency = 6                         ## <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
             self.client = Client(frequency)
 
 
