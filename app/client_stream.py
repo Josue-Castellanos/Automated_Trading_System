@@ -216,7 +216,7 @@ class Client:
 
             # Good Contract ranges
             exp_contracts = strike_price_df.iloc[:expected_move_round + 1][::-1]
-            roi_contracts = strike_price_df.loc[(strike_price_df['ROI'] <= 6000) & (strike_price_df['Delta'] >= 0.03) & (strike_price_df['Ask'] >= 0.25)][::-1]
+            roi_contracts = strike_price_df.loc[(strike_price_df['ROI'] <= 6000) & (strike_price_df['Ask'] >= 0.25)][::-1]
             ask_contracts = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
             # RAISE EXCEPTION: If dataframe is empty
