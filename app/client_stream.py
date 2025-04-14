@@ -7,6 +7,7 @@ from schwab import Schwab
 from sheet import Sheet
 from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, market_is_open, filter_options, datetime, timedelta
 from strategy.ttm_squeeze import ttm_squeeze_momentum
+from strategy.stochastic_hull import stochastic_hull
 from stream import Stream, process_data
 
 
@@ -44,10 +45,22 @@ class Client:
         self.hash = self.get_hash()
 
         # Strategy
-        self.momentum_call_colors = ['darkblue', 'cyan', 'darkcyan', 'deepskyblue', 'paleturquoise', 'lightcyan']
-        self.momentum_put_colors = ['purple', 'magenta', 'darkmagenta', 'mediumvioletred', 'hotpink', 'plum']
+        self.momentum_call_colors = ['darkblue', 
+                                     'cyan', 
+                                     'darkcyan', 
+                                     'deepskyblue', 
+                                     'paleturquoise', 
+                                     'lightcyan']
+        self.momentum_put_colors = ['purple', 
+                                    'magenta', 
+                                    'darkmagenta', 
+                                    'mediumvioletred', 
+                                    'hotpink', 
+                                    'plum']
         self.freq = freq     ## <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
         # self.counter = 3
+        self.obos_counter = 0
+
 
         # Settings
         self.set_settings()
@@ -69,52 +82,78 @@ class Client:
         """
         try:
             print("\nStep 2: FETCH DATA")
-            print(datetime.now())
-            
             data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', self.freq, self.prev_date, self.today)
 
             print("\nStep 3: CHECK MOMENTUM")
-            momentum_data = ttm_squeeze_momentum(data, self.freq)
+            stoch_data = stochastic_hull(data)
+            momentum_data = ttm_squeeze_momentum(stoch_data)
 
             # Catch potential IndexError early
             if len(momentum_data) < backtrack:
                 print("UPDATE: NOT ENOUGH DATA FOR MOMENTUM ANALYSIS!")
                 return
 
-            colors = momentum_data[['combined_color_5']][-backtrack:]['combined_color_5'].tolist()       # RAISE INDEX ERROR
+            ## <--------- SUPER IMPORTNAT!! COLORS OF THE SYSTEM IN STRATEGY --------->
+            colors = momentum_data[['macd_color']][-backtrack:]['macd_color'].tolist()       # RAISE INDEX ERROR
             squeeze = momentum_data['squeeze_on'].iloc[-1]
             current_position = self.get_position_type()
-
+            stochastic = 'OVERSOLD' if momentum_data['stoch_oversold'].iloc[-1] or momentum_data['stoch_bearish_break'].iloc[-1] else 'OVERBOUGHT' if momentum_data['stoch_overbought'].iloc[-1] or momentum_data['stoch_bullish_break'].iloc[-1] else None
+            overbought_bools = momentum_data['stoch_overbought'].iloc[-2:].tolist()
+            oversold_bools = momentum_data['stoch_oversold'].iloc[-2:].tolist()
+            
             print(f"CURRENT POSITION: {current_position}")
-            print(f"DOTS: {colors}")
+            print(f"MOMENTUM: {colors}")
             print(f"SQUEEZE: {squeeze}")
-
+            print(f"STOCHASTIC: {stochastic}")
+            
             # FOR LOWER TIMEFRAME TRADING LIKE 1-3 MIN
             # If the counter is greater than zero, we recently got in a trade
             # if self.counter > 0:
             #     self.counter -= 1
             #     return 
-            # If market is in a squeeze, wait for market to expand
-            # if squeeze:
-            #     print("TREND: MARKET IN HIGH SQUEEZE, WAIT!")
-            #     return
 
             print("\nStep 4: SELL ACTIVE POSITIONS")
             # Determine trade action based on momentum color
             if all(color in self.momentum_call_colors for color in colors):
-                trade_type = "CALL"
+                trade_type = 'CALL'
             elif all(color in self.momentum_put_colors for color in colors):
-                trade_type = "PUT"
+                trade_type = 'PUT'
             else:
                 print("TREND: LOSING MOMENTUM!")
                 return
-
-            # Handle existing positions
+                
+            # Handle current positions
             if current_position == trade_type:
-                print("TREND: MOVING WITH MOMENTUM, HOLD POSITION!")
-                return
+                # Handle overbought/oversold positions
+                if stochastic is not None:
+                    self.obos_counter += 1                        
+                    if self.obos_counter >= 5:
+                        print(f"TREND: {stochastic}, SELL NOW!")
+                        self.sell_position()
+                        return
+                    else:
+                        print(f"TREND: {stochastic} WITH MOMENTUM, HOLD POSITION!")
+                        return
+                elif current_position == 'CALL' and overbought_bools == [True, False]:
+                    print(f"TREND: {stochastic}, SELL NOW!")
+                    self.sell_position()
+                    return
+                elif current_position == 'PUT' and oversold_bools == [True, False]:
+                    print(f"TREND: {stochastic}, SELL NOW!")
+                    self.sell_position()
+                    return
+                else:
+                    print("TREND: MOVING WITH MOMENTUM, HOLD POSITION!")
+                    return
             elif current_position is not None:
                 self.sell_position()
+            # Handle new positions
+            elif trade_type == 'CALL' and stochastic == 'OVERBOUGHT':
+                print("TREND: STOCK PRICE OVERBOUGHT, WAIT!")
+                return
+            elif trade_type == 'PUT' and stochastic == 'OVERSOLD':
+                print("TREND: STOCK PRICE OVERSOLD, WAIT!")
+                return
 
             # Check funds and enter position
             print("\nStep 5: CHECK FOR SUFFICIENT FUNDS")
@@ -177,7 +216,7 @@ class Client:
 
             # Good Contract ranges
             exp_contracts = strike_price_df.iloc[:expected_move_round + 1][::-1]
-            roi_contracts = strike_price_df.loc[(strike_price_df['ROI'] <= 6000) & (strike_price_df['Delta'] >= 0.02) & strike_price_df['Ask'] >= 0.10][::-1]
+            roi_contracts = strike_price_df.loc[(strike_price_df['ROI'] <= 6000) & (strike_price_df['Delta'] >= 0.03) & (strike_price_df['Ask'] >= 0.25)][::-1]
             ask_contracts = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
             # RAISE EXCEPTION: If dataframe is empty
@@ -219,7 +258,7 @@ class Client:
                     self.replace_position(order_type=type)
                 else:
                     print("CONTRACT BOUGHT!")
-                    self.account_balance = self.account_balance - ((0.25 * 100) * self.position_size)
+                    self.account_balance -=  (25) * self.position_size
                     return "BOUGHT"
                 max_attempts += 1
 
@@ -265,6 +304,7 @@ class Client:
             time.sleep(5)
             if self.get_position_type() is None:
                 print("CONTRACT SOLD!")
+                self.obos_counter = 0
                 break
             else:
                 print(f"ERROR: ORDER REPLACEMENT: {max_attempts + 1}.")
@@ -399,6 +439,7 @@ class Client:
         Returns:
             None
         """
+        balance = 100.00        # Temp
         self.account_balance = balance
         print(f"Account Balance: ${self.account_balance}")
 
@@ -584,12 +625,17 @@ class Client:
 
                 # Calculate sleep duration until the next n-minute mark
                 sleep_duration = (next_time - now).total_seconds()
+                
+                # Add confirmation delay
+                confirmation_delay = (self.freq / 2) * 60 # seconds
+                sleep_duration += confirmation_delay
 
                 print(f"\nStep 1: SLEEPING FOR {sleep_duration:.2f}s, UNTIL {next_time.strftime('%H:%M')}")
-
+                
                 if sleep_duration > 0:
                     time.sleep(sleep_duration)
-
+                    
+                print(datetime.now())
                 self.check_momentum_chain()
 
         self.thread = threading.Thread(target=checker, daemon=True)

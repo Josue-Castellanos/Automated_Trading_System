@@ -41,9 +41,6 @@ def ttm_squeeze_momentum(data, freq, date=0, length=20, nBB=2.0, nK_Mid=1.5, nK_
     data['histogram'] = data['macd'] - data['signal']
     data['macd_color'] = macd_colors(data['histogram'])
     
-    # Stochastic
-    data = stochastic_hull(data)
-    
     # Momentum
     data["momentum"] = data["Close"].rolling(length).apply(linear_regression, raw=True)
     data['momentum_color'] = [momentum_colors(data, i) for i in range(len(data))]
@@ -91,8 +88,6 @@ def linear_regression(close_prices):
 
 
 ## TESTING ##
-
-
 def combined_colors_5(data):
     """
     Enhanced combined color indicator with:
@@ -158,9 +153,9 @@ def combined_colors_5(data):
         # if is_overbought and cross_above_overbought:
         #     combined_colors.append('yellow')
         # elif is_overbought:
-        #     combined_colors.append('yellow')
-        # elif is_oversold and cross_below_oversold:
         #     combined_colors.append('gold')
+        # elif is_oversold and cross_below_oversold:
+        #     combined_colors.append('yellow')
         # elif is_oversold:
         #     combined_colors.append('gold')
         
@@ -229,7 +224,7 @@ def combined_colors_5(data):
                     combined_colors.append(colors['moderate_bullish'])  # macd_color    # moderate_bearish
                 elif bear_score >= 3:
                     if mom_strength == 'strong' and macd_strength == 'weak' and volume_spike:
-                        combined_colors.append('red')     # mom_color   
+                        combined_colors.append(colors['moderate_bullish'])     # mom_color   
                     elif mom_strength == 'strong':
                         combined_colors.append(colors['moderate_bearish']) # mom_color
                     elif macd_strength =='strong' and mom_strength == 'weak':
@@ -263,42 +258,9 @@ def combined_colors_5(data):
                 combined_colors.append(macd_color)                      # neautral
                 
         else:
-            combined_colors.append('yellow')
+            combined_colors.append(macd_color)
         
     return combined_colors
-
-
-def stochastic_hull(data, k_period=8, d_period=2, overbought=90, oversold=10):
-    """
-    Calculate Hull-weighted Stochastic Oscillator
-    """
-    # Calculate Weighted Moving Average (as proxy for Hull)
-    def hull_ma(series, period):
-        wma1 = wma(series, period//2)
-        wma2 = wma(series, period)
-        return wma(2 * wma1 - wma2, int(np.sqrt(period)))
-
-    def wma(series, period):
-        weights = np.arange(1, period+1)
-        return series.rolling(period).apply(lambda x: np.dot(x, weights)/weights.sum(), raw=True)
-    
-    # Calculate raw Stochastic values
-    low_min = data['Low'].rolling(window=k_period).min()
-    high_max = data['High'].rolling(window=k_period).max()
-    raw_stoch = 100 * ((data['Close'] - low_min) / (high_max - low_min))
-    
-    # Apply Hull weighting (using WMA as approximation)
-    data['stoch_k'] = hull_ma(raw_stoch, k_period)
-    data['stoch_d'] = hull_ma(data['stoch_k'], d_period)
-    
-    # Detect breakouts
-    data['stoch_overbought'] = data['stoch_d'] >= overbought
-    data['stoch_oversold'] = data['stoch_d'] <= oversold
-    data['stoch_bullish_break'] = (data['stoch_d'] > overbought) & (data['stoch_d'].shift(1) <= overbought)
-    data['stoch_bearish_break'] = (data['stoch_d'] < oversold) & (data['stoch_d'].shift(1) >= oversold)
-    data['stoch_bearish_reverse'] = (data['stoch_d'] > oversold) & (data['stoch_d'].shift(1) <= oversold)
-    data['stoch_bullish_reverse'] = (data['stoch_d'] < overbought) & (data['stoch_d'].shift(1) >= overbought)
-    return data
 
 
 def squeeze_colors(row):
@@ -343,7 +305,6 @@ def macd_colors(hist):
 
     return colors
 
-    
 
 def plot_ttm_squeeze_momentum(data):
     """
@@ -359,10 +320,12 @@ def plot_ttm_squeeze_momentum(data):
         # Plot momentum as a dot
         plt.scatter(i, row['momentum'], color=row['combined_color_5'], label="_nolegend_")
 
-
-        if row['squeeze_color'] is not None:
+        # if row['squeeze_color'] is not None:
+        #     plt.axvline(x=i, color='purple', linestyle='--', linewidth=0.8, alpha=0.7)
+        #     plt.scatter(i, 0, color=row['squeeze_color'], marker='o', s=10, label='Squeeze On')
+        if row['stoch_overbought'] or row['stoch_oversold']:
             plt.axvline(x=i, color='purple', linestyle='--', linewidth=0.8, alpha=0.7)
-            plt.scatter(i, 0, color=row['squeeze_color'], marker='o', s=10, label='Squeeze On')
+            plt.scatter(i, 0, color='red', marker='o', s=10, label='Squeeze On')
 
     plt.xticks(ticks=range(len(data)), labels=timestamps, rotation=45, fontsize=9)
     plt.axhline(0, color='gray', linestyle='--', linewidth=1)
