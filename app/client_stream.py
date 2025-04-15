@@ -127,7 +127,7 @@ class Client:
                 # Handle overbought/oversold positions
                 if stochastic is not None:
                     self.obos_counter += 1                        
-                    if self.obos_counter >= 5:
+                    if self.obos_counter > 5:
                         print(f"TREND: {stochastic}, SELL NOW!")
                         self.sell_position()
                         return

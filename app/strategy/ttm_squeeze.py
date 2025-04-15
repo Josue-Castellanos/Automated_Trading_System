@@ -318,14 +318,14 @@ def plot_ttm_squeeze_momentum(data):
 
     for i, (timestamp, row) in enumerate(data.iterrows()):
         # Plot momentum as a dot
-        plt.scatter(i, row['momentum'], color=row['combined_color_5'], label="_nolegend_")
+        plt.scatter(i, row['momentum'], color=row['momentum_color'], label="_nolegend_")
 
-        # if row['squeeze_color'] is not None:
-        #     plt.axvline(x=i, color='purple', linestyle='--', linewidth=0.8, alpha=0.7)
-        #     plt.scatter(i, 0, color=row['squeeze_color'], marker='o', s=10, label='Squeeze On')
+        if row['squeeze_color'] is not None:
+            plt.axvline(x=i, color=row['squeeze_color'], linestyle='--', linewidth=0.8, alpha=0.7)
+            plt.scatter(i, 0, color=row['squeeze_color'], marker='o', s=10, label='Squeeze On')
         if row['stoch_overbought'] or row['stoch_oversold']:
-            plt.axvline(x=i, color='purple', linestyle='--', linewidth=0.8, alpha=0.7)
-            plt.scatter(i, 0, color='red', marker='o', s=10, label='Squeeze On')
+            plt.axvline(x=i, color='red', linestyle='--', linewidth=0.8, alpha=0.7)
+            plt.scatter(i, 0, color='red', marker='o', s=8, label='Squeeze On')
 
     plt.xticks(ticks=range(len(data)), labels=timestamps, rotation=45, fontsize=9)
     plt.axhline(0, color='gray', linestyle='--', linewidth=1)
