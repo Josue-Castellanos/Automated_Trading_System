@@ -550,19 +550,19 @@ class Client:
         self.set_account_balance(self.get_total_cash())
 
         # The Daily account balance goal by eod
-        self.set_adjusted_balance(int(row.iloc[0]['Adj$Balance'][1:]))
+        self.set_adjusted_balance(int(row.iloc[0]['Adj$Balance'][1:].replace(',', '')))
 
         # The Daily profit goal per trade
-        self.set_daily_goal(int(row.iloc[0]['Adj$Gain'][1:]))
+        self.set_daily_goal(int(row.iloc[0]['Adj$Gain'][1:].replace(',', '')))
 
         # The Daily percentage goal per trade
         self.set_profit_percentage(float(row.iloc[0]['Pos%Tgt'][:-1]))
 
         # The Daily total risk $ per trade
-        self.set_total_risk(int(row.iloc[0]['Tot$Risk'][1:]))
+        self.set_total_risk(int(row.iloc[0]['Tot$Risk'][1:].replace(',', '')))
 
         # The Contract Price
-        self.set_contract_price(float(row.iloc[0]['Pos$Size'][1:]))
+        self.set_contract_price(float(row.iloc[0]['Pos$Size'][1:].replace(',', '')))
 
         # The Number of Contracts Per Trade
         self.set_position_size(int(row.iloc[0]['Pos#Open']))
