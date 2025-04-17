@@ -146,7 +146,7 @@ def create_candle_dataframe(candles, freq, replacement_candles=None):
         # **Fill missing datetime indices**
         expected_freq = '1min'  # Adjust this if needed (1-minute candlesticks assumed)
         df_complete = df_complete.resample(expected_freq).ffill()  # Forward-fill missing timestamps
-        # df_complete = df_complete.iloc[:-1]
+        df_complete = df_complete[:-1]    # Remove the last row, its a yfinance real-time 1-minute candle 
 
         if freq > 1:
             for index, ohlcv in df_complete.iterrows():
@@ -174,18 +174,19 @@ def create_candle_dataframe(candles, freq, replacement_candles=None):
                     aggregated_data.append(aggregated_candle)
                     candle_data.clear()  # Reset for next batch
 
-            if len(candle_data) > 0:
-                aggregated_candle = {
-                    'Datetime': candle_data[0]["Datetime"],   # Timestamp of first candle in the group
-                    'Open': candle_data[0]["Open"],           # Open price from first candle
-                    'High': max(candle["High"] for candle in candle_data),
-                    'Low': min(candle["Low"] for candle in candle_data),
-                    'Close': candle_data[-1]["Close"],        # Close price from last candle
-                    'Volume': sum(candle["Volume"] for candle in candle_data),
-                }
-                aggregated_data.append(aggregated_candle)
-                candle_data.clear() 
-
+            # Real-Time Indicator Data
+            # if len(candle_data) > 0:
+            #     aggregated_candle = {
+            #         'Datetime': candle_data[0]["Datetime"],   # Timestamp of first candle in the group
+            #         'Open': candle_data[0]["Open"],           # Open price from first candle
+            #         'High': max(candle["High"] for candle in candle_data),
+            #         'Low': min(candle["Low"] for candle in candle_data),
+            #         'Close': candle_data[-1]["Close"],        # Close price from last candle
+            #         'Volume': sum(candle["Volume"] for candle in candle_data),
+            #     }
+            #     aggregated_data.append(aggregated_candle)
+            #     candle_data.clear() 
+            candle_data.clear()  # Reset for next batch
             agdf = pd.DataFrame(aggregated_data)
             agdf.set_index('Datetime', inplace=True)
             return agdf  
@@ -243,6 +244,9 @@ def fetch_price_data(schwab, symbol, time, freq, start, end):
     if freq in [5, 10, 15, 30]:
         response = schwab.price_history(symbol, 'day', 1, time, freq, start, end, True, True)
         df = create_candle_dataframe(response.json(), freq) if response.ok else None
+        # This removes the last row since its real-time
+        # It can fluctuate into false signals.
+        df = df[:-1]
     else:
         response = schwab.price_history(symbol, 'day', 1, time, 1, start, end, True, True)
         price_history =  yf.Ticker(symbol).history(period='1d', interval='1m', prepost=True)

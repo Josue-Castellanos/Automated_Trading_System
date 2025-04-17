@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
+from strategy.stochastic_hull import stochastic_hull
+from strategy.elder_ray_index import elder_ray_index
+from strategy.volume_profile import volume_profile
 
 
 def ttm_squeeze_momentum(data, freq, date=0, length=20, nBB=2.0, nK_Mid=1.5, nK_Low=2.0, nK_High=1.0, fast=12, slow=26, signal=9):
@@ -44,6 +46,14 @@ def ttm_squeeze_momentum(data, freq, date=0, length=20, nBB=2.0, nK_Mid=1.5, nK_
     # Momentum
     data["momentum"] = data["Close"].rolling(length).apply(linear_regression, raw=True)
     data['momentum_color'] = [momentum_colors(data, i) for i in range(len(data))]
+    
+    # Stochastic Hull
+    data = stochastic_hull(data)    
+    
+    # Elder Ray Index
+    data = elder_ray_index(data)
+    data = volume_profile(data)
+    # data = elder_ray_vpoc_colors(data)
 
     # data['combined_color'] = combined_colors(data)
     # data['combined_color_1'] = combined_colors_1(data)
@@ -54,6 +64,57 @@ def ttm_squeeze_momentum(data, freq, date=0, length=20, nBB=2.0, nK_Mid=1.5, nK_
     # data = enhanced_combined_indicator(data)
     
     return filter_market_hours(data, freq, date)
+
+
+# def elder_ray_vpoc_colors(data):
+#     # Initialize columns if they don't exist
+#     data['entry_signal'] = 0  # 0=No trade, 1=CALL, -1=PUT
+#     data['should_exit'] = False
+#     data['elder_color'] = None   
+#     # Pre-calculate conditions for vectorization
+#     bull_power = data['bull_power'].values
+#     bear_power = data['bear_power'].values
+#     macd_color = data['macd_color'].values
+#     squeeze = data['squeeze_on'].values
+#     close = data['Close'].values
+#     vpoc = data['vp_poc'].values
+#     for i in range(1, len(data)):  # Start from 1 to look back at i-1
+#         # CALL Entry Conditions
+#         if (bull_power[i] > 0.1) and \
+#            (macd_color[i] in momentum_call_colors) and \
+#            (not squeeze[i]):
+#             data.at[data.index[i], 'entry_signal'] = 1    
+#         # PUT Entry Conditions
+#         elif (bear_power[i] < -0.1) and \
+#              (macd_color[i] in momentum_put_colors) and \
+#              (not squeeze[i]):
+#             data.at[data.index[i], 'entry_signal'] = -1       
+#         # Exit Conditions
+#         if data['entry_signal'].iloc[i-1] == 1:  # CALL exit
+#             data.at[data.index[i], 'should_exit'] = (
+#                 (bull_power[i] < 0) or 
+#                 (close[i] < vpoc[i])
+#             )
+#         elif data['entry_signal'].iloc[i-1] == -1:  # PUT exit
+#             data.at[data.index[i], 'should_exit'] = (
+#                 (bear_power[i] > 0) or 
+#                 (close[i] > vpoc[i])
+#             )   
+#     # Vectorized color assignment
+#     data['elder_color'] = np.select(
+#         [
+#             data['entry_signal'] == 1,
+#             data['entry_signal'] == -1,
+#             data['should_exit']
+#         ],
+#         [
+#             'lime',   # CALL entry
+#             'red',    # PUT entry
+#             'yellow'  # Exit
+#         ],
+#         default=None
+#     )   
+#     return data
 
 
 def filter_market_hours(data, freq, date, market_open="06:30", market_close="13:00"):
@@ -68,7 +129,6 @@ def filter_market_hours(data, freq, date, market_open="06:30", market_close="13:
         market_open="06:24"
     if freq in [11, 14]:
         market_open="06:26"
-
 
     unique_dates = data.index.normalize().unique()
     unique_dates = [d.date() for d in unique_dates]
@@ -314,18 +374,26 @@ def plot_ttm_squeeze_momentum(data):
     timestamps = data.index.strftime('%H:%M')
 
     for i in range(len(data)):
-        plt.bar(i, data['histogram'].iloc[i], color=data['macd_color'].iloc[i], width=0.6, label='_nolegend_')
+
+            plt.bar(i, data['histogram'].iloc[i], color=data['macd_color'].iloc[i], width=0.6, label='_nolegend_')
 
     for i, (timestamp, row) in enumerate(data.iterrows()):
         # Plot momentum as a dot
         plt.scatter(i, row['momentum'], color=row['momentum_color'], label="_nolegend_")
 
+        if row['stoch_overbought']:
+            plt.scatter(i, row['momentum'], color='red', marker='o', s=8, label='Squeeze On')
+        if row['stoch_oversold']:
+            plt.scatter(i, row['momentum'], color='lime', marker='o', s=8, label='Squeeze On')
+            
+        if 'bull' in row['stoch_signal'] and row['stoch_strength'] > 2000:
+            plt.scatter(i, row['momentum'], color='orange', marker='o', s=8, label='Squeeze On')
+        if 'bear' in row['stoch_signal'] and row['stoch_strength'] < -2000:
+            plt.scatter(i, row['momentum'], color='yellow', marker='o', s=8, label='Squeeze On')
+
         if row['squeeze_color'] is not None:
-            plt.axvline(x=i, color=row['squeeze_color'], linestyle='--', linewidth=0.8, alpha=0.7)
+            plt.axvline(x=i, color='purple', linestyle='--', linewidth=0.8, alpha=0.7)
             plt.scatter(i, 0, color=row['squeeze_color'], marker='o', s=10, label='Squeeze On')
-        if row['stoch_overbought'] or row['stoch_oversold']:
-            plt.axvline(x=i, color='red', linestyle='--', linewidth=0.8, alpha=0.7)
-            plt.scatter(i, 0, color='red', marker='o', s=8, label='Squeeze On')
 
     plt.xticks(ticks=range(len(data)), labels=timestamps, rotation=45, fontsize=9)
     plt.axhline(0, color='gray', linestyle='--', linewidth=1)

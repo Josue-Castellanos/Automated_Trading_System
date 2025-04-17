@@ -7,7 +7,6 @@ from schwab import Schwab
 from sheet import Sheet
 from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, market_is_open, filter_options, datetime, timedelta
 from strategy.ttm_squeeze import ttm_squeeze_momentum
-from strategy.stochastic_hull import stochastic_hull
 from stream import Stream, process_data
 
 
@@ -58,8 +57,7 @@ class Client:
                                     'hotpink', 
                                     'plum']
         self.freq = freq     ## <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
-        # self.counter = 3
-        self.obos_counter = 0
+        # self.obos_counter = 0
 
 
         # Settings
@@ -85,8 +83,7 @@ class Client:
             data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', self.freq, self.prev_date, self.today)
 
             print("\nStep 3: CHECK MOMENTUM")
-            stoch_data = stochastic_hull(data)
-            momentum_data = ttm_squeeze_momentum(stoch_data, self.freq)
+            momentum_data = ttm_squeeze_momentum(data, self.freq)
 
             # Catch potential IndexError early
             if len(momentum_data) < backtrack:
@@ -97,62 +94,53 @@ class Client:
             colors = momentum_data[['macd_color']][-backtrack:]['macd_color'].tolist()       # RAISE INDEX ERROR
             squeeze = momentum_data['squeeze_on'].iloc[-1]
             current_position = self.get_position_type()
-            stochastic = 'OVERSOLD' if momentum_data['stoch_oversold'].iloc[-1] or momentum_data['stoch_bearish_break'].iloc[-1] else 'OVERBOUGHT' if momentum_data['stoch_overbought'].iloc[-1] or momentum_data['stoch_bullish_break'].iloc[-1] else None
-            overbought_bools = momentum_data['stoch_overbought'].iloc[-2:].tolist()
-            oversold_bools = momentum_data['stoch_oversold'].iloc[-2:].tolist()
+            stochastic = 'OVERSOLD' if momentum_data['stoch_oversold'].iloc[-1] or momentum_data['stoch_bearish_break'].iloc[-1] else \
+                        'OVERBOUGHT' if momentum_data['stoch_overbought'].iloc[-1] or momentum_data['stoch_bullish_break'].iloc[-1] else None
             
             print(f"CURRENT POSITION: {current_position}")
-            print(f"MOMENTUM: {colors}")
+            print(f"MOMENTUM: {colors[-1]}")
             print(f"SQUEEZE: {squeeze}")
             print(f"STOCHASTIC: {stochastic}")
-            
-            # FOR LOWER TIMEFRAME TRADING LIKE 1-3 MIN
-            # If the counter is greater than zero, we recently got in a trade
-            # if self.counter > 0:
-            #     self.counter -= 1
-            #     return 
 
-            print("\nStep 4: SELL ACTIVE POSITIONS")
+            print("\nStep 4: CHECK ACTIVE POSITIONS")
             # Determine trade action based on momentum color
             if all(color in self.momentum_call_colors for color in colors):
                 trade_type = 'CALL'
             elif all(color in self.momentum_put_colors for color in colors):
                 trade_type = 'PUT'
             else:
-                print("TREND: LOSING MOMENTUM!")
+                print("TREND: LOSING MOMENTUM OR MISSING COLOR!")
                 return
-                
+
             # Handle current positions
-            if current_position == trade_type:
+            if current_position == trade_type:          # Current Contract Follows Trend
+                # self.obos_counter += 1                        
                 # Handle overbought/oversold positions
-                if stochastic is not None:
-                    self.obos_counter += 1                        
-                    if self.obos_counter > 5:
-                        print(f"TREND: {stochastic}, SELL NOW!")
-                        self.sell_position()
-                        return
-                    else:
-                        print(f"TREND: {stochastic} WITH MOMENTUM, HOLD POSITION!")
-                        return
-                elif current_position == 'CALL' and overbought_bools == [True, False]:
-                    print(f"TREND: {stochastic}, SELL NOW!")
-                    self.sell_position()
-                    return
-                elif current_position == 'PUT' and oversold_bools == [True, False]:
+                if (stochastic == 'OVERBOUGHT' and current_position == 'CALL') or \
+                    (stochastic == 'OVERSOLD' and current_position == 'PUT'):       # Current CALL Overbought
+                # if self.obos_counter >= 3:
+                #     print(f"TREND: {stochastic}, SELL NOW!")
+                #     self.sell_position()
+                #     return
                     print(f"TREND: {stochastic}, SELL NOW!")
                     self.sell_position()
                     return
                 else:
                     print("TREND: MOVING WITH MOMENTUM, HOLD POSITION!")
                     return
-            elif current_position is not None:
+                
+            elif current_position is not None:      # Current Contract Against Trend
                 self.sell_position()
-            # Handle new positions
-            elif trade_type == 'CALL' and stochastic == 'OVERBOUGHT':
+
+            # Handle Setups For None Position
+            if trade_type == 'CALL' and stochastic == 'OVERBOUGHT':
                 print("TREND: STOCK PRICE OVERBOUGHT, WAIT!")
                 return
-            elif trade_type == 'PUT' and stochastic == 'OVERSOLD':
+            if trade_type == 'PUT' and stochastic == 'OVERSOLD':
                 print("TREND: STOCK PRICE OVERSOLD, WAIT!")
+                return
+            if squeeze:
+                print("TREND: MARKET IS IN SQEEZE, WAIT!")
                 return
 
             # Check funds and enter position
@@ -168,11 +156,8 @@ class Client:
                 return
 
             print("\nStep 7: ENTER POSITION")
-            response = self.buy_position(contract, trade_type)
-            if response is None:
-                return
-            else:
-                self.counter = 3
+            self.buy_position(contract, trade_type)
+            print("\n")
         except IndexError:
             return
 
@@ -216,7 +201,8 @@ class Client:
 
             # Good Contract ranges
             exp_contracts = strike_price_df.iloc[:expected_move_round + 1][::-1]
-            roi_contracts = strike_price_df.loc[(strike_price_df['ROI'] <= 6000) & (strike_price_df['Ask'] >= 0.25)][::-1]
+            roi_contracts = strike_price_df.loc[(strike_price_df['ROI'] <= 6000) & \
+                                                (strike_price_df['Ask'] >= 0.25)][::-1]
             ask_contracts = strike_price_df.loc[strike_price_df['Ask'] <= self.contract_price]
 
             # RAISE EXCEPTION: If dataframe is empty
@@ -259,12 +245,11 @@ class Client:
                 else:
                     print("CONTRACT BOUGHT!")
                     self.account_balance -=  (25) * self.position_size
-                    return "BOUGHT"
+                    return
                 max_attempts += 1
 
             print("CONTRACT CANNOT BE BOUGHT, TOO MUCH VOLATILITY!")
             self.delete_pending_position()
-            print("BUY ORDER CANCELLED.")
 
             return None
 
@@ -318,7 +303,13 @@ class Client:
         """
         try:
             print("SEARCHING FOR PENDING ACTIVATION ORDERS...")
-            account_orders = self.schwab.account_orders(maxResults=1, fromEnteredTime=order_date(), toEnteredTime=self.tomorrow, accountNumber=self.hash, status="WORKING")
+            account_orders = self.schwab.account_orders(
+                                                        maxResults=1, 
+                                                        fromEnteredTime=order_date(), 
+                                                        toEnteredTime=self.tomorrow, 
+                                                        accountNumber=self.hash, 
+                                                        status="WORKING"
+                                                        )
             order = account_orders[0]    # RAISE INDEX EXCEPTION
             print("PENDING ACTIVATION ORDER FOUND!")
 
@@ -363,7 +354,13 @@ class Client:
         
         """
         try:
-            account_orders = self.schwab.account_orders(maxResults=5, fromEnteredTime=order_date(), toEnteredTime=self.tomorrow, accountNumber=self.hash, status="PENDING_ACTIVATION")
+            account_orders = self.schwab.account_orders(
+                                                        maxResults=5,
+                                                        fromEnteredTime=order_date(), 
+                                                        toEnteredTime=self.tomorrow, 
+                                                        accountNumber=self.hash, 
+                                                        status="PENDING_ACTIVATION"
+                                                        )
             
             # RAISE INDEX EXCEPTION: The pending order was executed If the list is empty
             orderId = account_orders[0].get('orderId')
