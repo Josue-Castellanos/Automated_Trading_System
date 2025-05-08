@@ -372,10 +372,49 @@ def plot_ttm_squeeze_momentum(data):
     """
     plt.figure(figsize=(20, 6))
     timestamps = data.index.strftime('%H:%M')
+    CALL = False
+    PUT = False
 
-    for i in range(len(data)):
-
+    for i in range(len(data)):  
+        # EXIT Puts
+        if (data['stoch_strength'].iloc[i - 1] < 0 and data['stoch_strength'].iloc[i] > 0) & (data['stoch_d'].iloc[i] > 15):
+            plt.bar(i, data['histogram'].iloc[i], color='yellow', width=0.6, label='_nolegend_')
+        else:
             plt.bar(i, data['histogram'].iloc[i], color=data['macd_color'].iloc[i], width=0.6, label='_nolegend_')
+        # if CALL:
+        #     # CALL EXIT
+        #     if (data['stoch_strength'].iloc[i] < 500) & (data['stoch_d'].iloc[i] >= 100):
+        #         CALL = False
+        #         plt.bar(i, data['histogram'].iloc[i], color='red', width=0.6, label='_nolegend_')
+        #     # CONTINUE
+        #     else:
+        #         plt.bar(i, data['histogram'].iloc[i], color='cyan', width=0.6, label='_nolegend_')
+            
+        # elif PUT:
+        #     # PUT EXIT
+        #     if (data['stoch_strength'].iloc[i] <= -2000) & (data['stoch_d'].iloc[i] < 10):
+        #         PUT = False
+        #         plt.bar(i, data['histogram'].iloc[i], color='red', width=0.6, label='_nolegend_')
+        #     elif (data['stoch_strength'].iloc[i] > 0) & (data['stoch_d'].iloc[i] > 0):
+        #         PUT = False
+        #         plt.bar(i, data['histogram'].iloc[i], color='red', width=0.6, label='_nolegend_')               
+        #     # CONTINUE
+        #     else:
+        #         plt.bar(i, data['histogram'].iloc[i], color='magenta', width=0.6, label='_nolegend_')
+        
+        # else:
+        #     # CALL ENTRY
+        #     if (data['stoch_strength'].iloc[i - 1] < -100 and data['stoch_strength'].iloc[i] >= 300) & (0 < data['stoch_d'].iloc[i - 1] < data['stoch_d'].iloc[i]):
+        #         CALL = True
+        #         plt.bar(i, data['histogram'].iloc[i], color='cyan', width=0.6, label='_nolegend_')
+        #     # PUT ENTRY
+        #     elif (0 < data['stoch_strength'].iloc[i - 1] and data['stoch_strength'].iloc[i] < 0) & (40 < data['stoch_d'].iloc[i] <= 89):
+        #         PUT = True
+        #         plt.bar(i, data['histogram'].iloc[i], color='magenta', width=0.6, label='_nolegend_')
+        #     # NO ENTRY
+        #     else:
+        #         plt.bar(i, data['histogram'].iloc[i], color='gray', width=0.6, label='_nolegend_')
+
 
     for i, (timestamp, row) in enumerate(data.iterrows()):
         # Plot momentum as a dot
@@ -386,14 +425,14 @@ def plot_ttm_squeeze_momentum(data):
         if row['stoch_oversold']:
             plt.scatter(i, row['momentum'], color='lime', marker='o', s=8, label='Squeeze On')
             
-        if 'bull' in row['stoch_signal'] and row['stoch_strength'] > 2000:
-            plt.scatter(i, row['momentum'], color='orange', marker='o', s=8, label='Squeeze On')
-        if 'bear' in row['stoch_signal'] and row['stoch_strength'] < -2000:
-            plt.scatter(i, row['momentum'], color='yellow', marker='o', s=8, label='Squeeze On')
+        # # if 'bull' in row['stoch_signal'] and row['stoch_strength'] > 2000:
+        # #     plt.scatter(i, row['momentum'], color='orange', marker='o', s=8, label='Squeeze On')
+        # # if 'bear' in row['stoch_signal'] and row['stoch_strength'] < -2000:
+        # #     plt.scatter(i, row['momentum'], color='yellow', marker='o', s=8, label='Squeeze On')
 
-        if row['squeeze_color'] is not None:
-            plt.axvline(x=i, color='purple', linestyle='--', linewidth=0.8, alpha=0.7)
-            plt.scatter(i, 0, color=row['squeeze_color'], marker='o', s=10, label='Squeeze On')
+        # if row['squeeze_color'] is not None:
+        #     plt.axvline(x=i, color='purple', linestyle='--', linewidth=0.8, alpha=0.7)
+        #     plt.scatter(i, 0, color=row['squeeze_color'], marker='o', s=10, label='Squeeze On')
 
     plt.xticks(ticks=range(len(data)), labels=timestamps, rotation=45, fontsize=9)
     plt.axhline(0, color='gray', linestyle='--', linewidth=1)
