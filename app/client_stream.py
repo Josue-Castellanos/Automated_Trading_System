@@ -70,98 +70,193 @@ class Client:
 # ************************************************************************************************************************
 # **************************************************** MOMENTUM **********************************************************
 # ************************************************************************************************************************
-    def check_momentum_chain(self, backtrack=1):
+    # def check_momentum_chain(self, backtrack=1):
+    #     """
+    #     Checks market momentum based on TTM Squeeze indicator.
+    #     Executes trades based on momentum color signals and position status.
+        
+    #     Args:
+    #         count (int): The index offset for fetching the most recent momentum data.
+    #     """
+    #     try:
+    #         print("\nStep 2: FETCH DATA")
+    #         data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', self.freq, self.prev_date, self.today)
+
+    #         print("\nStep 3: CHECK MOMENTUM")
+    #         momentum_data = ttm_squeeze_momentum(data, self.freq)
+
+    #         # Catch potential IndexError early
+    #         if len(momentum_data) < backtrack:
+    #             print("UPDATE: NOT ENOUGH DATA FOR MOMENTUM ANALYSIS!")
+    #             return
+
+    #         ## <--------- SUPER IMPORTNAT!! COLORS OF THE SYSTEM IN STRATEGY --------->
+    #         colors = momentum_data[['macd_color']][-backtrack:]['macd_color'].tolist()       # RAISE INDEX ERROR
+    #         squeeze = momentum_data['squeeze_on'].iloc[-1]
+    #         current_position = self.get_position_type()
+    #         stochastic = 'OVERSOLD' if momentum_data['stoch_oversold'].iloc[-1] or momentum_data['stoch_bearish_break'].iloc[-1] else \
+    #                     'OVERBOUGHT' if momentum_data['stoch_overbought'].iloc[-1] or momentum_data['stoch_bullish_break'].iloc[-1] else None
+            
+    #         print(f"CURRENT POSITION: {current_position}")
+    #         print(f"MOMENTUM: {colors[-1]}")
+    #         print(f"SQUEEZE: {squeeze}")
+    #         print(f"STOCHASTIC: {stochastic}")
+
+    #         print("\nStep 4: CHECK ACTIVE POSITIONS")
+    #         # Determine trade action based on momentum color
+    #         if all(color in self.momentum_call_colors for color in colors):
+    #             trade_type = 'CALL'
+    #         elif all(color in self.momentum_put_colors for color in colors):
+    #             trade_type = 'PUT'
+    #         else:
+    #             print("TREND: LOSING MOMENTUM OR MISSING COLOR!")
+    #             return
+
+    #         # Handle current positions
+    #         if current_position == trade_type:          # Current Contract Follows Trend
+    #             # self.obos_counter += 1                        
+    #             # Handle overbought/oversold positions
+    #             if (stochastic == 'OVERBOUGHT' and current_position == 'CALL') or \
+    #                 (stochastic == 'OVERSOLD' and current_position == 'PUT'):       # Current CALL Overbought
+    #             # if self.obos_counter >= 3:
+    #             #     print(f"TREND: {stochastic}, SELL NOW!")
+    #             #     self.sell_position()
+    #             #     return
+    #                 print(f"TREND: {stochastic}, SELL NOW!")
+    #                 self.sell_position()
+    #                 return
+    #             else:
+    #                 print("TREND: MOVING WITH MOMENTUM, HOLD POSITION!")
+    #                 return
+                
+    #         elif current_position is not None:      # Current Contract Against Trend
+    #             self.sell_position()
+
+    #         # Handle Setups For None Position
+    #         if trade_type == 'CALL' and stochastic == 'OVERBOUGHT':
+    #             print("TREND: STOCK PRICE OVERBOUGHT, WAIT!")
+    #             return
+    #         if trade_type == 'PUT' and stochastic == 'OVERSOLD':
+    #             print("TREND: STOCK PRICE OVERSOLD, WAIT!")
+    #             return
+    #         # This needs to be expanded to 15, 30 minute squeezez
+    #         if squeeze:
+    #             print("TREND: MARKET IS IN SQEEZE, WAIT!")
+    #             return
+
+    #         # Check funds and enter position
+    #         print("\nStep 5: CHECK FOR SUFFICIENT FUNDS")
+    #         print(f"FUNDS: ${self.account_balance}")
+    #         if not self.account_balance >= 25.00: # (self.contract_price * 100) * self.position_size:
+    #             print("UPDATE: INSUFFICIENT FUNDS!")
+    #             return
+
+    #         print("\nStep 6: SELECT BEST CONTRACT")
+    #         contract = self.best_contract(trade_type)
+    #         if contract is None:
+    #             return
+
+    #         print("\nStep 7: ENTER POSITION")
+    #         self.buy_position(contract, trade_type)
+    #         print("\n")
+    #     except IndexError:
+    #         return
+
+    def check_stochastic_trading_signals(self, backtrack=3):
         """
-        Checks market momentum based on TTM Squeeze indicator.
-        Executes trades based on momentum color signals and position status.
+        Executes trades based on our confirmed stochastic patterns:
+        1. Extreme Capitulation Reversal (Long)
+        2. Bearish Breakdown (Short)
+        3. Overbought Reversal (Sell Longs)
         
         Args:
-            count (int): The index offset for fetching the most recent momentum data.
+            backtrack (int): Number of previous candles to analyze for pattern confirmation
         """
         try:
-            print("\nStep 2: FETCH DATA")
-            data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'minute', self.freq, self.prev_date, self.today)
-
-            print("\nStep 3: CHECK MOMENTUM")
-            momentum_data = ttm_squeeze_momentum(data, self.freq)
-
-            # Catch potential IndexError early
-            if len(momentum_data) < backtrack:
-                print("UPDATE: NOT ENOUGH DATA FOR MOMENTUM ANALYSIS!")
+            print("\nStep 1: FETCH MARKET DATA")
+            data = self.stream.df if self.stream else fetch_price_data(self.schwab, 'SPY', 'day', 1, 'minute', self.freq, self.prev_date, self.today)
+            
+            # Ensure we have stochastic data columns
+            if 'stoch_d' not in data.columns or 'stoch_strength' not in data.columns:
+                print("ERROR: Missing required stochastic data columns")
                 return
-
-            ## <--------- SUPER IMPORTNAT!! COLORS OF THE SYSTEM IN STRATEGY --------->
-            colors = momentum_data[['macd_color']][-backtrack:]['macd_color'].tolist()       # RAISE INDEX ERROR
-            squeeze = momentum_data['squeeze_on'].iloc[-1]
+                
+            # Get the most recent data points
+            recent_data = data.iloc[-backtrack-1:]
             current_position = self.get_position_type()
-            stochastic = 'OVERSOLD' if momentum_data['stoch_oversold'].iloc[-1] or momentum_data['stoch_bearish_break'].iloc[-1] else \
-                        'OVERBOUGHT' if momentum_data['stoch_overbought'].iloc[-1] or momentum_data['stoch_bullish_break'].iloc[-1] else None
+            
+            print("\nStep 2: ANALYZE STOCHASTIC PATTERNS")
+            # Current values
+            current_stoch_d = recent_data['stoch_d'].iloc[-1]
+            current_stoch_str = recent_data['stoch_strength'].iloc[-1]
+            current_price = recent_data['Close'].iloc[-1]
+            
+            # Previous values for pattern confirmation
+            prev_stoch_d = recent_data['stoch_d'].iloc[-2]
+            prev_stoch_str = recent_data['stoch_strength'].iloc[-2]
             
             print(f"CURRENT POSITION: {current_position}")
-            print(f"MOMENTUM: {colors[-1]}")
-            print(f"SQUEEZE: {squeeze}")
-            print(f"STOCHASTIC: {stochastic}")
-
-            print("\nStep 4: CHECK ACTIVE POSITIONS")
-            # Determine trade action based on momentum color
-            if all(color in self.momentum_call_colors for color in colors):
-                trade_type = 'CALL'
-            elif all(color in self.momentum_put_colors for color in colors):
-                trade_type = 'PUT'
-            else:
-                print("TREND: LOSING MOMENTUM OR MISSING COLOR!")
-                return
-
-            # Handle current positions
-            if current_position == trade_type:          # Current Contract Follows Trend
-                # self.obos_counter += 1                        
-                # Handle overbought/oversold positions
-                if (stochastic == 'OVERBOUGHT' and current_position == 'CALL') or \
-                    (stochastic == 'OVERSOLD' and current_position == 'PUT'):       # Current CALL Overbought
-                # if self.obos_counter >= 3:
-                #     print(f"TREND: {stochastic}, SELL NOW!")
-                #     self.sell_position()
-                #     return
-                    print(f"TREND: {stochastic}, SELL NOW!")
-                    self.sell_position()
-                    return
-                else:
-                    print("TREND: MOVING WITH MOMENTUM, HOLD POSITION!")
-                    return
-                
-            elif current_position is not None:      # Current Contract Against Trend
+            print(f"PRICE: {current_price}")
+            print(f"STOCH_D: {current_stoch_d} (Prev: {prev_stoch_d})")
+            print(f"STOCH_STRENGTH: {current_stoch_str} (Prev: {prev_stoch_str})")
+            
+            # Pattern 1: Extreme Capitulation Reversal (Long)
+            capitulation = (prev_stoch_str <= -2500 and 
+                        prev_stoch_d < 20 and 
+                        current_stoch_str > (prev_stoch_str + 1000) and 
+                        current_stoch_d > 5)
+            
+            # Pattern 2: Bearish Breakdown (Short)
+            bearish = (prev_stoch_d > 50 and 
+                    current_stoch_d < 20 and 
+                    current_stoch_str <= -2000)
+            
+            # Pattern 3: Overbought Reversal (Sell Longs)
+            overbought = (prev_stoch_d > 80 and 
+                        prev_stoch_str > 2000 and 
+                        current_stoch_str < (prev_stoch_str * 0.7))  # 30%+ drop
+            
+            print("\nStep 3: CHECK FOR TRADE SIGNALS")
+            # Handle existing positions first
+            if current_position == 'CALL' and overbought:
+                print("SIGNAL: OVERBOUGHT REVERSAL - SELL LONG POSITION")
                 self.sell_position()
-
-            # Handle Setups For None Position
-            if trade_type == 'CALL' and stochastic == 'OVERBOUGHT':
-                print("TREND: STOCK PRICE OVERBOUGHT, WAIT!")
                 return
-            if trade_type == 'PUT' and stochastic == 'OVERSOLD':
-                print("TREND: STOCK PRICE OVERSOLD, WAIT!")
+                
+            if current_position == 'PUT' and capitulation:
+                print("SIGNAL: CAPITULATION REVERSAL - COVER SHORT POSITION")
+                self.sell_position()
                 return
-            if squeeze:
-                print("TREND: MARKET IS IN SQEEZE, WAIT!")
-                return
-
-            # Check funds and enter position
-            print("\nStep 5: CHECK FOR SUFFICIENT FUNDS")
-            print(f"FUNDS: ${self.account_balance}")
-            if not self.account_balance >= 25.00: # (self.contract_price * 100) * self.position_size:
-                print("UPDATE: INSUFFICIENT FUNDS!")
-                return
-
-            print("\nStep 6: SELECT BEST CONTRACT")
-            contract = self.best_contract(trade_type)
-            if contract is None:
-                return
-
-            print("\nStep 7: ENTER POSITION")
-            self.buy_position(contract, trade_type)
-            print("\n")
-        except IndexError:
+                
+            # Only enter new trades if no existing position
+            if current_position is None:
+                if capitulation:
+                    print("SIGNAL: EXTREME CAPITULATION REVERSAL - ENTER LONG")
+                    trade_type = 'CALL'
+                elif bearish:
+                    print("SIGNAL: BEARISH BREAKDOWN - ENTER SHORT")
+                    trade_type = 'PUT'
+                else:
+                    print("NO VALID TRADE SIGNALS DETECTED")
+                    return
+                    
+                # Check funds before entering
+                print("\nStep 4: CHECK FUNDS")
+                if not self.account_balance >= 25.00:
+                    print("INSUFFICIENT FUNDS!")
+                    return
+                    
+                print("\nStep 5: SELECT CONTRACT")
+                contract = self.best_contract(trade_type)
+                if contract is None:
+                    return
+                    
+                print("\nStep 6: ENTER POSITION")
+                self.buy_position(contract, trade_type)
+                
+        except Exception as e:
+            print(f"ERROR IN TRADING LOGIC: {str(e)}")
             return
-
-
 # ************************************************************************************************************************
 # ************************************************ TRADING SYSTEM ********************************************************
 # ************************************************************************************************************************
