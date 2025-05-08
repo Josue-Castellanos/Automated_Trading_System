@@ -1,25 +1,24 @@
 from datetime import datetime, timedelta
 from app.schwab import Schwab
-from app.sheet import Sheet
+from app.sheet import Sheet, pd
+from app.strategy.indicator_manager import indicator_manager
 import re
-
-
 
 class AppService:
     def __init__(self):
-        self._schwab = Schwab()
-        self._sheet = Sheet()
+        self.schwab = Schwab()
+        self.sheet = Sheet()
         self.today = datetime.now()
         self.tomorrow = self.today + timedelta(days=1)
 
 
     def get_account_data(self):
         try:
-            account_hash = self._schwab.account_numbers()[0].get("hashValue")
+            account_hash = self.schwab.account_numbers()[0].get("hashValue")
             if not account_hash:
                 raise ValueError("No account hash found")
 
-            account_data = self._schwab.account_number(account_hash, "positions")
+            account_data = self.schwab.account_number(account_hash, "positions")
             if not account_data:
                 raise ValueError("No account data returned from Schwab API")
             
@@ -49,7 +48,7 @@ class AppService:
         
 
     def get_performance_sheet(self):
-        df = self._sheet.read_sheet()
+        df = self.sheet.read_sheet()
         data_dict = df.to_dict(orient="records")
 
         # Keys to remove
@@ -67,7 +66,7 @@ class AppService:
     
 
     def get_account_orders(self):
-        all_account_orders = self._schwab.all_orders(fromEnteredTime=self.order_date(), toEnteredTime=self.tomorrow.strftime("%Y-%m-%d"), maxResults=50, status='FILLED')
+        all_account_orders = self.schwab.all_orders(fromEnteredTime=self.order_date(), toEnteredTime=self.tomorrow.strftime("%Y-%m-%d"), maxResults=50, status='FILLED')
 
         order_dict = []
 
@@ -123,4 +122,55 @@ class AppService:
         return from_entered_date.strftime("%Y-%m-%d")
     
 
+    def fetch_data(self, symbol, periodType, period, frequencyType, frequency):
+        end = datetime.now().strftime("%Y-%m-%d")
+        start = None
+        if periodType != 'ytd' or periodType != 'year':
+            start = (datetime.now() - timedelta(weeks=52)).strftime("%Y-%m-%d")
+        if period == 0:
+            period = None
+        
+        raw_data = self.schwab.price_history(symbol=symbol, 
+                                            periodType=periodType, 
+                                            period=period, 
+                                            frequencyType=frequencyType, 
+                                            frequency=frequency, 
+                                            startDate=start, 
+                                            endDate=end, 
+                                            needExtendedHoursData=False, 
+                                            needPreviousClose=False)
+  
+        return raw_data
+
+
+    def fetch_candle_and_indicator_data(self, symbol, periodType, period, frequencyType, frequency, indicatorSettings):
+        end = datetime.now().strftime("%Y-%m-%d")
+        start = None
+
+        if periodType != 'ytd':
+            start = (datetime.now() - timedelta(weeks=52)).strftime("%Y-%m-%d")
+        if period == 0:
+            period = None
+
+        raw_data = self.schwab.price_history(
+                                        symbol=symbol, 
+                                        periodType=periodType, 
+                                        period=period, 
+                                        frequencyType=frequencyType, 
+                                        frequency=frequency, 
+                                        startDate=start, 
+                                        endDate=end, 
+                                        needExtendedHoursData=False, 
+                                        needPreviousClose=False)
+
+
+
+        # # Convert df back to a list of dictionaries, may remove if it doesnt work
+        # candle_data = df.to_dict(orient='records')
+
+        indicators = indicator_manager(raw_data, indicatorSettings)
+
+        return raw_data, indicators       
+      
+        
 app_service = AppService()

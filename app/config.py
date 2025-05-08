@@ -1,12 +1,14 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
-import os
+from pathlib import Path
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = BASE_DIR / ".env"
+load_dotenv(ENV_PATH)
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=ENV_PATH)
     
     ACCESS_TOKEN_DATETIME: str
     REFRESH_TOKEN_DATETIME: str
@@ -34,7 +36,26 @@ class Settings(BaseSettings):
     EMAIL_ACCOUNT: str
     EMAIL_PASSWORD: str
 
+    DJANGO_SECRET_KEY: str
+    DEBUG: bool
+    ALLOWED_HOSTS: str
+    POSTGRES_ENGINE: str
+    POSTGRES_DB: str
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    PG_HOST: str
+    PG_PORT: int
 
+    SIGNING_KEY: str
+    LOCALHOST: str
+
+    DOMAIN: str
+    EMAIL_HOST: str
+    EMAIL_HOST_USER: str
+    EMAIL_HOST_PASSWORD: str
+    EMAIL_PORT: int
+
+    
     @classmethod
     def reload(cls):
         """
