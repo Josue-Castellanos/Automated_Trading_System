@@ -4,7 +4,7 @@
 PROJECT_MAIN_DIR_NAME="Automated_Trading_System"
 
 # Replace {FOLDER_NAME_WHERE_SETTINGS_FILE_EXISTS} with the folder name where your settings file exists
-FOLDER_NAME_WHERE_SETTINGS_FILE_EXISTS="cfehome"
+FOLDER_NAME_WHERE_SETTINGS_FILE_EXISTS="backend"
 
 # Reload systemd daemon
 sudo systemctl daemon-reload
