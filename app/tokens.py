@@ -8,6 +8,7 @@ import requests
 import sys
 sys.path.append("/home/ubuntu/Automated_Trading_System")
 from app.config import Settings
+from dotenv import set_key, dotenv_values
 
 class Tokens:
     def __init__(self):
@@ -109,7 +110,7 @@ class Tokens:
 
     def _schwab_token_manager(self, todo=None, accessTokenTime=None, refreshTokenTime=None, tokenDict=None):
         """
-        Manage token operations such as reading, writing, and updating token information.
+        Manage token operations such as reading, writing, and updating token information using dotenv.
         
         Args:
             todo (str): The operation to perform.
@@ -120,63 +121,58 @@ class Tokens:
         Returns:
             tuple or None: Depending on the operation, may return token information.
         """
-        envPath = self.settings.ENV_PATH
-        accessTokenTimeFormat = "%Y-%m-%d %H:%M:%S"
-        refreshTokenTimeFormat = "%Y-%m-%d %H:%M:%S"
+        env_path = self.settings.ENV_PATH
+        access_token_time_format = "%Y-%m-%d %H:%M:%S"
+        refresh_token_time_format = "%Y-%m-%d %H:%M:%S"
 
         def write_token_var(att, rtt, td):
-            """
-            """
+            """Update instance variables with token information."""
             self.refreshToken = td.get("refresh_token")
             self.accessToken = td.get("access_token")
             self.accessTokenDateTime = att
             self.refreshTokenDateTime = rtt
             self.idToken = td.get("id_token")
 
-        def write_token_file(newAccessTokenTime, newRefreshTokenTime, newTokenDict):
-            """
-            """
-            with open(envPath, "r") as file:
-                lines = file.readlines()
-            for i, line in enumerate(lines):
-                if line.startswith("ACCESS_TOKEN_DATETIME"):
-                    lines[i] = f"ACCESS_TOKEN_DATETIME = {newAccessTokenTime.strftime(accessTokenTimeFormat)}\n"
-                elif line.startswith("REFRESH_TOKEN_DATETIME"):
-                    lines[i] = f"REFRESH_TOKEN_DATETIME = {newRefreshTokenTime.strftime(refreshTokenTimeFormat)}\n"
-                elif line.startswith("JSON_DICT"):
-                    lines[i] = f"JSON_DICT = {json.dumps(newTokenDict)}\n"
-                elif line.startswith("ACCESS_TOKEN"):
-                    lines[i] = f"ACCESS_TOKEN = {newTokenDict.get('access_token')}\n"
-                elif line.startswith("REFRESH_TOKEN"):
-                    lines[i] = f"REFRESH_TOKEN = {newTokenDict.get('refresh_token')}\n"
-                elif line.startswith("ID_TOKEN"):
-                    lines[i] = f"ID_TOKEN = {newTokenDict.get('id_token')}\n"
-                    break
-            with open(envPath, "w") as file:
-                file.writelines(lines)
-                file.flush()
+        def write_token_file(new_access_token_time, new_refresh_token_time, new_token_dict):
+            """Update the .env file with new token information using dotenv."""
+            # Convert datetime objects to strings
+            access_time_str = new_access_token_time.strftime(access_token_time_format)
+            refresh_time_str = new_refresh_token_time.strftime(refresh_token_time_format)
+            
+            # Update the environment file
+            set_key(env_path, "ACCESS_TOKEN_DATETIME", access_time_str)
+            set_key(env_path, "REFRESH_TOKEN_DATETIME", refresh_time_str)
+            set_key(env_path, "ACCESS_TOKEN", new_token_dict.get("access_token"))
+            set_key(env_path, "REFRESH_TOKEN", new_token_dict.get("refresh_token"))
+            set_key(env_path, "ID_TOKEN", new_token_dict.get("id_token"))
+            set_key(env_path, "JSON_DICT", json.dumps(new_token_dict))
 
         def read_token_file():
-            """
-            """
-            with open(envPath, "r") as file:
-                formattedAccessTokenTime = datetime.strptime(file.readline().split('=')[1].strip(), accessTokenTimeFormat)
-                formattedRefreshTokenTime = datetime.strptime(file.readline().split('=')[1].strip(), refreshTokenTimeFormat)
-                formattedTokenDict = json.loads(file.readline().split('=')[1].strip())
-                return formattedAccessTokenTime, formattedRefreshTokenTime, formattedTokenDict
+            """Read token information from the .env file using dotenv."""
+            env_vars = dotenv_values(env_path)
+            
+            access_time = datetime.strptime(
+                env_vars["ACCESS_TOKEN_DATETIME"], 
+                access_token_time_format
+            )
+            refresh_time = datetime.strptime(
+                env_vars["REFRESH_TOKEN_DATETIME"], 
+                refresh_token_time_format
+            )
+            token_dict = json.loads(env_vars["JSON_DICT"])
+            
+            return access_time, refresh_time, token_dict
 
         try:
             if todo == "getFile":
                 return read_token_file()
             elif todo == "set":
-                if accessTokenTime is not None and refreshTokenTime is not None and tokenDict is not None:
+                if all([accessTokenTime, refreshTokenTime, tokenDict]):
                     write_token_file(accessTokenTime, refreshTokenTime, tokenDict)
                     write_token_var(accessTokenTime, refreshTokenTime, tokenDict)
-                else:
-                    pass
             elif todo == "init":
-                accessTokenTime, refreshTokenTime, tokenDict = read_token_file()
-                write_token_var(accessTokenTime, refreshTokenTime, tokenDict)
+                access_token_time, refresh_token_time, token_dict = read_token_file()
+                write_token_var(access_token_time, refresh_token_time, token_dict)
         except Exception as e:
             self._update_refresh_token()
 

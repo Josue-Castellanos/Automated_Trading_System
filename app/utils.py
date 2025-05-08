@@ -237,20 +237,20 @@ def filter_options(df, type):
         return df
         
 
-def fetch_price_data(schwab, symbol, time, freq, start, end):
+def fetch_price_data(schwab, symbol, periodType, periods, time, freq, start, end):
     """
     Fetch price history from Schwab API.
     """
-    if freq in [5, 10, 15, 30]:
-        response = schwab.price_history(symbol, 'day', 1, time, freq, start, end, True, True)
-        df = create_candle_dataframe(response.json(), freq) if response.ok else None
+    if freq in [5, 10, 15, 30] or periodType in ['year', 'ytd', 'month', 'week']:
+        response = schwab.price_history(symbol, periodType, periods, time, freq, start, end, True, True)
+        df = create_candle_dataframe(response, freq) if len(response) > 0 else None
         # This removes the last row since its real-time
         # It can fluctuate into false signals.
-        df = df[:-1]
+        # df = df.iloc[:-1]
     else:
-        response = schwab.price_history(symbol, 'day', 1, time, 1, start, end, True, True)
+        response = schwab.price_history(symbol, periodType, periods, time, freq, start, end, True, True)
         price_history =  yf.Ticker(symbol).history(period='1d', interval='1m', prepost=True)
-        df = create_candle_dataframe(response.json(), freq, price_history) if response.ok else None
+        df = create_candle_dataframe(response, freq, price_history) if response.ok else None
     return df
 
 
@@ -259,7 +259,7 @@ def stream_price_data(schwab, symbol, start, end):
     Fetch price history from Schwab API.
     """
     response = schwab.price_history(symbol, 'day', 1, 'minute', 5, start, end, True, True)
-    df = create_candle_dataframe(response.json()) if response.ok else None
+    df = create_candle_dataframe(response) if response.ok else None
     return df
 
 
@@ -283,5 +283,5 @@ def market_is_open():
     """
     now = datetime.now()
     market_open = time(6, 30)  # e.g., 6:30 AM
-    market_close = time(12, 49)  # e.g., 12:58 PM
+    market_close = time(12, 55)  # e.g., 12:58 PM
     return market_open <= now.time() <= market_close

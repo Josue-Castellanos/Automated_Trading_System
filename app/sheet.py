@@ -41,7 +41,7 @@ class Sheet:
         Returns:
             pandas.DataFrame or None: A DataFrame containing the sheet data if successful, None otherwise.
         """
-        service = build('sheets', 'v4', credentials=self.creds_performance)
+        service = build('sheets', 'v4', credentials=self.creds_performance, cache_discovery=False)
         RANGE = 'perf!A10:P'
 
         sheet = service.spreadsheets()

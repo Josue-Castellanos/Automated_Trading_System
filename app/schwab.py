@@ -1,4 +1,3 @@
-import json
 import requests
 from datetime import datetime
 import sys
@@ -445,17 +444,21 @@ class Schwab():
         Returns:
             requests.Response: The API response containing the price history data.
         """
-        self.reload_settings()
-        return requests.get(f'{self.settings.MARKET_ENDPOINT}/pricehistory', 
-                            headers={"Accept": "application/json", 'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'}, 
-                            params=self._params_parser({
-                                'symbol': symbol, 'periodType': periodType, 'period': period, 
-                                'frequencyType': frequencyType, 'frequency': frequency, 
-                                'startDate': self._time_converter(startDate, format="epoch"), 
-                                'endDate': self._time_converter(endDate, format="epoch"), 
-                                'needExtendedHoursData': needExtendedHoursData, 
-                                'needPreviousClose': needPreviousClose}))
-    
+        try:
+            self.reload_settings()
+            response = requests.get(f'{self.settings.MARKET_ENDPOINT}/pricehistory', 
+                                headers={"Accept": "application/json", 'Authorization': f'Bearer {self.settings.ACCESS_TOKEN}'}, 
+                                params=self._params_parser({
+                                    'symbol': symbol, 'periodType': periodType, 'period': period, 
+                                    'frequencyType': frequencyType, 'frequency': frequency, 
+                                    'startDate': self._time_converter(startDate, format="epoch"), 
+                                    'endDate': self._time_converter(endDate, format="epoch"), 
+                                    'needExtendedHoursData': needExtendedHoursData, 
+                                    'needPreviousClose': needPreviousClose}))
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as e:
+            return {"error": f"Failed to retrieve price history: {str(e)}"}
 
     def movers(self, symbol, sort=None, frequency=None):
         """
