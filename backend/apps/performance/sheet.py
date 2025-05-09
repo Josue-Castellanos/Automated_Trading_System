@@ -1,15 +1,9 @@
 
 import pandas as pd
-from datetime import datetime
-import sys
-sys.path.append("/home/ubuntu/Automated_Trading_System")
-from app.config import Settings
+import json
+from backend.settings.config import Settings, PERFORMANCE_PATH
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
-
 
 class Sheet:
     """
@@ -28,8 +22,7 @@ class Sheet:
         """
         self.settings = Settings()
         self.SERVICES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
-        self.creds_performance = service_account.Credentials.from_service_account_file(self.settings.PERFORMANCE_PATH, scopes=self.SERVICES)
-
+        self.creds_performance = service_account.Credentials.from_service_account_file(PERFORMANCE_PATH, scopes=self.SERVICES)
 
     def read_sheet(self):
         """

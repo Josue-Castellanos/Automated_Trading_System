@@ -1,10 +1,9 @@
-from backend.services import app_service
+from backend.apps.trading.services import app_service
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from app.strategy.trend_advisor import TrendAdvisorService
-from app.strategy.indicator_manager import indicator_manager
-
+from backend.apps.trading.strategy.trend_advisor import TrendAdvisorService
+from backend.apps.trading.strategy.indicator_manager import indicator_manager
 import json
 
 PHASES = {

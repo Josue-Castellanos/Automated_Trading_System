@@ -25,6 +25,9 @@ CORS_ALLOWED_ORIGINS = [
 
 # Application definition
 DJANGO_APPS = [
+    'backend.apps.performance.apps.PerformanceConfig',
+    'backend.apps.candles.apps.CandlesConfig',
+    'backend.apps.trading.apps.TradingConfig',
     'backend.apps.subscriptions.apps.SubscriptionsConfig',
     'backend.apps.users.apps.UsersConfig',
     'backend.apps.profiles.apps.ProfilesConfig',

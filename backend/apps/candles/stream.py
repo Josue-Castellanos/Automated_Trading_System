@@ -2,10 +2,8 @@ import pandas as pd
 import json
 import asyncio
 import websockets
-import sys
-sys.path.append("/home/ubuntu/Automated_Trading_System")
-from app.config import Settings
-from utils import convert_epoch_to_datetime, datetime, time
+from backend.settings.config import Settings
+from backend.apps.trading.utils import convert_epoch_to_datetime, datetime, time
 
 
 class Stream:
@@ -69,7 +67,7 @@ class Stream:
                         "SchwabClientCustomerId": self.streamer_info.get("schwabClientCustomerId"),
                         "SchwabClientCorrelId": self.streamer_info.get("schwabClientCorrelId"),
                         "parameters": {
-                            "keys": "SPY",
+                            "keys": ["SPY", "QQQ", "IWM", "DIA"],
                             "fields": "0, 1, 2, 3, 4, 5, 6, 7, 8"
                         }
                     }

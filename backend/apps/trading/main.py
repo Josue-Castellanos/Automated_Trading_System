@@ -1,7 +1,7 @@
-from client_stream import Client, market_is_open
+from backend.apps.trading.client import Client, market_is_open
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
-from tokens import Tokens
+from backend.apps.candles.token.tokens import Tokens
 
 
 class Scheduler:

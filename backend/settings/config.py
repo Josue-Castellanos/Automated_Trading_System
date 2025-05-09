@@ -1,15 +1,21 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 from pathlib import Path
+from typing import ClassVar
+import os
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / ".env"
 load_dotenv(ENV_PATH)
 
+PERFORMANCE_PATH = BASE_DIR / os.environ.get("PERFORMANCE_PATH")
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ENV_PATH)
     
+    ENV_PATH: ClassVar[Path] = ENV_PATH
+
     ACCESS_TOKEN_DATETIME: str
     REFRESH_TOKEN_DATETIME: str
     JSON_DICT: dict
@@ -19,17 +25,16 @@ class Settings(BaseSettings):
     ACCOUNT_NUMBER: int
     APP_KEY: str
     SECRET_KEY: str
-    ENV_PATH: str   
     CALLBACK_URL: str 
     ACCOUNT_ENDPOINT: str
     MARKET_ENDPOINT: str
     POST_ENDPOINT: str
-    STREAM_ENDPOINT: str   
+    STREAM_ENDPOINT: str
+    PERFORMANCE_PATH: str 
 
     CLIENT_ID: str
     CLIENT_SECRET: str
     SHEET_ID: str
-    PERFORMANCE_PATH: str
 
     IMAP_SERVER: str
     IMAP_PORT: int
@@ -61,7 +66,7 @@ class Settings(BaseSettings):
         """
         Reload the .env file and refresh settings.
         """
-        load_dotenv(override=True)  # Reload .env variables into the environment
+        load_dotenv(cls.ENV_PATH, override=True)  # Reload .env variables into the environment
         return cls()
 
 

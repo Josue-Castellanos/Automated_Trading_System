@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
-from app.schwab import Schwab
-from app.sheet import Sheet, pd
-from app.strategy.indicator_manager import indicator_manager
+from backend.apps.candles.schwab import Schwab
+from backend.apps.performance.sheet import Sheet, pd
+from backend.apps.trading.strategy.indicator_manager import indicator_manager
 import re
 
 class AppService:

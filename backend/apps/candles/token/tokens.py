@@ -5,10 +5,8 @@ import threading
 import time
 from datetime import datetime
 import requests
-import sys
-sys.path.append("/home/ubuntu/Automated_Trading_System")
-from app.config import Settings
-from dotenv import set_key, dotenv_values
+from backend.settings.config import Settings
+from dotenv import set_key
 
 class Tokens:
     def __init__(self):
@@ -121,7 +119,6 @@ class Tokens:
         Returns:
             tuple or None: Depending on the operation, may return token information.
         """
-        env_path = self.settings.ENV_PATH
         access_token_time_format = "%Y-%m-%d %H:%M:%S"
         refresh_token_time_format = "%Y-%m-%d %H:%M:%S"
 
@@ -140,26 +137,28 @@ class Tokens:
             refresh_time_str = new_refresh_token_time.strftime(refresh_token_time_format)
             
             # Update the environment file
-            set_key(env_path, "ACCESS_TOKEN_DATETIME", access_time_str)
-            set_key(env_path, "REFRESH_TOKEN_DATETIME", refresh_time_str)
-            set_key(env_path, "ACCESS_TOKEN", new_token_dict.get("access_token"))
-            set_key(env_path, "REFRESH_TOKEN", new_token_dict.get("refresh_token"))
-            set_key(env_path, "ID_TOKEN", new_token_dict.get("id_token"))
-            set_key(env_path, "JSON_DICT", json.dumps(new_token_dict))
+            set_key(self.settings.ENV_PATH, "ACCESS_TOKEN_DATETIME", access_time_str)
+            set_key(self.settings.ENV_PATH, "REFRESH_TOKEN_DATETIME", refresh_time_str)
+            set_key(self.settings.ENV_PATH, "ACCESS_TOKEN", new_token_dict.get("access_token"))
+            set_key(self.settings.ENV_PATH, "REFRESH_TOKEN", new_token_dict.get("refresh_token"))
+            set_key(self.settings.ENV_PATH, "ID_TOKEN", new_token_dict.get("id_token"))
+            set_key(self.settings.ENV_PATH, "JSON_DICT", json.dumps(new_token_dict))
+        
+            # Then run the settings reload.
 
         def read_token_file():
             """Read token information from the .env file using dotenv."""
-            env_vars = dotenv_values(env_path)
+            # env_vars = dotenv_values(self.settings.ENV_PATH)
             
             access_time = datetime.strptime(
-                env_vars["ACCESS_TOKEN_DATETIME"], 
+                self.settings.ACCESS_TOKEN_DATETIME, 
                 access_token_time_format
             )
             refresh_time = datetime.strptime(
-                env_vars["REFRESH_TOKEN_DATETIME"], 
+                self.settings.REFRESH_TOKEN_DATETIME, 
                 refresh_token_time_format
             )
-            token_dict = json.loads(env_vars["JSON_DICT"])
+            token_dict = json.loads(self.settings.JSON_DICT)
             
             return access_time, refresh_time, token_dict
 

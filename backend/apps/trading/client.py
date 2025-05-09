@@ -3,11 +3,11 @@ import time
 import math
 import numpy as np
 import threading
-from schwab import Schwab
-from sheet import Sheet
-from utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, market_is_open, filter_options, datetime, timedelta
-from strategy.ttm_squeeze import ttm_squeeze_momentum
-from stream import Stream, process_data
+from backend.apps.candles.schwab import Schwab
+from backend.apps.performance.sheet import Sheet
+from backend.apps.trading.utils  import dates, order_date, fetch_price_data, create_option_dataframe, create_order, market_is_open, filter_options, datetime, timedelta
+from backend.apps.trading.strategy.ttm_squeeze import ttm_squeeze_momentum
+from backend.apps.candles.stream import Stream, process_data
 
 
 class Client:

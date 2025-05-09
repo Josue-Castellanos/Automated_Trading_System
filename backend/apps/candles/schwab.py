@@ -1,8 +1,6 @@
 import requests
 from datetime import datetime
-import sys
-sys.path.append("/home/ubuntu/Automated_Trading_System")
-from app.config import Settings
+from backend.settings.config import Settings
 
 
 

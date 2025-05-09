@@ -4,9 +4,7 @@ import threading
 from datetime import datetime, time
 from email.header import decode_header
 from imapclient import IMAPClient
-import sys
-sys.path.append("/home/ubuntu/Automated_Trading_System")
-from app.config import Settings
+from backend.settings.config import Settings
 
 
 CALL_SIGNAL_TYPES = ('CALL5-', 'CALL15', 'CALL30', 'CALL1H', 'CALL2H', 'CALL4H', 'C5----', 'C15---', 'C30---', 'C1H---', 'C2H---', 'C4H---')

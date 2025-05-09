@@ -1,10 +1,7 @@
 import yfinance as yf
 import matplotlib.pyplot as plt
 import pandas as pd
-import sys
-# sys.path.append("/home/ubuntu/Automated_Trading_System")
-sys.path.append("/Users/josuecastellanos/Documents/Automated_Trading_System")
-from app.utils import dates, datetime
+from backend.apps.trading.utils import dates, datetime
 
 
 def retrieveData():
