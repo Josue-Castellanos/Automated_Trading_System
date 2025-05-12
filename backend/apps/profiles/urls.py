@@ -1,10 +1,15 @@
 from django.urls import path
+from .views import (
+    ProfileViewSet,
+    UpdateProfileView,
+    ProfilePhotoUploadView
+)
+from rest_framework.routers import DefaultRouter
 
-from .views import (ProMemberListAPIView, BasicMemberListAPIView, GetProfileAPIView, UpdateProfileAPIView)
+router = DefaultRouter()
+router.register(r'profiles', ProfileViewSet, basename='profile')
 
 urlpatterns = [
-    path("me/", GetProfileAPIView.as_view(), name="get_profile"),
-    path("update/<str:username>/", UpdateProfileAPIView.as_view(), name="update_profile"),
-    path("members/pro/all", ProMemberListAPIView.as_view(), name="all_pro_members"),
-    path("members/basic/all", BasicMemberListAPIView.as_view(), name="all_basic_members"),
-]
+    path('profile/update/', UpdateProfileView.as_view(), name='profile-update'),
+    path('profile/photo/', ProfilePhotoUploadView.as_view(), name='profile-photo-upload'),
+] + router.urls

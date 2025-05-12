@@ -1,86 +1,45 @@
-from rest_framework import generics, permissions, status
-from rest_framework.response import Response
+from rest_framework import viewsets, status, permissions
 from rest_framework.views import APIView
-from django.utils import timezone
-from .exceptions import NotYourProfile, ProfileNotFound
-from backend.apps.subscriptions.models import UserSubscription
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
 from .models import Profile
-from .renders import ProfileJSONRenderer
 from .serializers import ProfileSerializer, UpdateProfileSerializer
-from backend.apps.subscriptions.serializers import UserSubscriptionSerializer
+from backend.apps.common.permissions import IsOwner
 
-# Get all Pro members (now based on active Pro subscriptions)
-class ProMemberListAPIView(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+class ProfileViewSet(viewsets.ModelViewSet):
     serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
     
     def get_queryset(self):
-        return Profile.objects.filter(
-            user__subscription__plan__name="Pro",
-            user__subscription__is_active=True,
-            user__subscription__end_date__gt=timezone.now()
-        ).select_related("user")
-    
-    
+        return Profile.objects.filter(user=self.request.user)
 
-# Get all Basic members (now based on active Basic subscriptions)
-class BasicMemberListAPIView(generics.ListAPIView):
+class UpdateProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = ProfileSerializer
     
-    def get_queryset(self):
-        # Get profiles with active Basic subscriptions
-        basic_user_ids = UserSubscription.objects.filter(
-            plan__name="Basic",
-            is_active=True,
-            end_date__gt=timezone.now()
-        ).values_list('user_id', flat=True)
-        return Profile.objects.filter(user_id__in=basic_user_ids)
+    def patch(self, request):
+        profile = request.user.profile
+        serializer = UpdateProfileSerializer(profile, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-class GetProfileAPIView(APIView):
+class ProfilePhotoUploadView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
     permission_classes = [permissions.IsAuthenticated]
-    renderer_classes = [ProfileJSONRenderer]
-
-    def get(self, request):
-        try:
-            user_profile = Profile.objects.get(user=request.user)
-            serializer = ProfileSerializer(user_profile, context={"request": request, "plans": UserSubscription.objects.all() })
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Profile.DoesNotExist:
-            raise ProfileNotFound
+    
+    def post(self, request):
+        profile = request.user.profile
         
-
-class UpdateProfileAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    renderer_classes = [ProfileJSONRenderer]
-    serializer_class = UpdateProfileSerializer
-
-    def patch(self, request, username):
-        try:
-            profile = Profile.objects.get(user__username=username)
-        except Profile.DoesNotExist:
-            raise ProfileNotFound
+        if 'profile_photo' not in request.FILES:
+            return Response(
+                {'error': 'No photo provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        profile.profile_photo = request.FILES['profile_photo']
+        profile.save()
         
-        if request.user.username != username:
-            raise NotYourProfile
-        
-        serializer = UpdateProfileSerializer(
-            instance=profile,  # Fixed typo from "isinstance" to "instance"
-            data=request.data,
-            partial=True,
-            context={"request": request}
-        )
-        
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class UserSubscriptionAPIView(APIView):
-    def get(self, request):
-        subscription = UserSubscription.objects.filter(user=request.user).first()
-        if not subscription:
-            return Response({"subscription": None}, status=status.HTTP_200_OK)
-        serializer = UserSubscriptionSerializer(subscription)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = ProfileSerializer(profile)
+        return Response(serializer.data)

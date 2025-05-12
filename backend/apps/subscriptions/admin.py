@@ -1,11 +1,10 @@
 from django.contrib import admin
-from .models import UserSubscription
+from .models import Subscription
 
 
 
-class UserSubscriptionAdmin(admin.ModelAdmin):
-    list_display = ("id", 'primary_key_id', 'user', 'plan_type', 'price', 'end_date', 'is_trial')
-    list_filter = ('end_date', 'is_trial', 'plan_type')
-    list_display_links = ('id', 'primary_key_id', 'user') 
-
-admin.site.register(UserSubscription, UserSubscriptionAdmin)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ('user', 'plan', 'price', 'start_date', 'end_date', 'is_trial', 'active', 'status')
+    list_filter = ('plan', 'is_trial', 'active', 'start_date')
+    search_fields = ('user__email', 'user__username', 'id', 'primary_key_id')
+admin.site.register(Subscription, SubscriptionAdmin)

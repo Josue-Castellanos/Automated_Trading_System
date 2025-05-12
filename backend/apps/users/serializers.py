@@ -15,7 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
     first_name = serializers.SerializerMethodField()
     last_name = serializers.SerializerMethodField()
     full_name = serializers.SerializerMethodField(source="get_full_name")
-    signup_plan = serializers.ChoiceField(choices=User.SIGNUP_PLAN_CHOICES,write_only=True)
+    plan = serializers.CharField(source="subscriptions.plan", read_only=True)
 
     class Meta:
         model = User
@@ -31,7 +31,7 @@ class UserSerializer(serializers.ModelSerializer):
             "profile_photo",
             "country",
             "city",
-            "signup_plan" 
+            "plan" 
         ]
 
     def get_first_name(self, obj):
@@ -54,4 +54,4 @@ class UserSerializer(serializers.ModelSerializer):
 class CreateUserSerializer(UserCreateSerializer):
     class Meta(UserCreateSerializer.Meta):
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "password", "signup_plan"]
+        fields = ["id", "username", "email", "first_name", "last_name", "password", "plan"]

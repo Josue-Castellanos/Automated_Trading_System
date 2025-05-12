@@ -1,74 +1,58 @@
-from rest_framework import generics, status
+from rest_framework import viewsets, status, permissions
+from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .models import SubscriptionPlan, UserSubscription
-from .serializers import (
-    SubscribeSerializer,
-    SubscriptionActionSerializer,
-    UserSubscriptionSerializer
-)
+from django.utils import timezone
+from .models import Subscription, Plan
+from .serializers import SubscriptionSerializer
+# from backend.apps.common.permissions import IsOwner
 
-class SubscriptionView(generics.GenericAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = SubscribeSerializer
+class SubscriptionViewSet(viewsets.ModelViewSet):
+    serializer_class = SubscriptionSerializer
+    permission_classes = [permissions.IsAuthenticated]  #, IsOwner]
+    
+    def get_queryset(self):
+        return Subscription.objects.filter(user=self.request.user)
 
+class UpgradeSubscriptionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
     def post(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        try:
-            plan = SubscriptionPlan.objects.get(id=serializer.validated_data['plan_id'])
-        except SubscriptionPlan.DoesNotExist:
-            return Response({"error": "Plan not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Create or update subscription
-        subscription, created = UserSubscription.objects.update_or_create(
-            user=request.user,
-            defaults={
-                'plan': plan,
-                'is_trial': serializer.validated_data['is_trial']
-            }
-        )
-        
-        return Response(
-            UserSubscriptionSerializer(subscription).data,
-            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        )
-
-class SubscriptionActionView(generics.GenericAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = SubscriptionActionSerializer
-
-    def post(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        action = serializer.validated_data['action']
-        subscription = request.user.subscription
-        
-        if action == 'cancel':
-            subscription.is_active = False
-            subscription.save()
-        elif action == 'reactivate':
-            subscription.is_active = True
-            subscription.save()
-        elif action == 'upgrade':
-            new_plan_id = serializer.validated_data.get('new_plan_id')
-            if not new_plan_id:
-                return Response(
-                    {"error": "new_plan_id required for upgrade"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            try:
-                new_plan = SubscriptionPlan.objects.get(id=new_plan_id)
-            except SubscriptionPlan.DoesNotExist:
-                return Response({"error": "Plan not found"}, status=status.HTTP_404_NOT_FOUND)
+        plan = request.data.get('plan')
+        if not plan or plan not in Plan.values:
+            return Response(
+                {'error': 'Invalid plan selected'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
             
-            subscription.plan = new_plan
-            subscription.save()
+        subscription = request.user.subscription
+        subscription.plan = plan
+        subscription.is_trial = False
+        subscription.active = True
+        subscription.save()
         
-        return Response(
-            UserSubscriptionSerializer(subscription).data,
-            status=status.HTTP_200_OK
-        )
+        serializer = SubscriptionSerializer(subscription)
+        return Response(serializer.data)
 
+class CancelSubscriptionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        subscription = request.user.subscription
+        subscription.active = False
+        subscription.end_date = timezone.now()
+        subscription.save()
+        
+        serializer = SubscriptionSerializer(subscription)
+        return Response(serializer.data)
+
+class ReactivateSubscriptionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        subscription = request.user.subscription
+        subscription.active = True
+        subscription.end_date = None
+        subscription.save()
+        
+        serializer = SubscriptionSerializer(subscription)
+        return Response(serializer.data)

@@ -10,9 +10,9 @@ class UserAdmin(BaseUserAdmin):
     add_form = CustomUserCreationForm
     form = CustomUserChangeForm
     model = User
-    list_display = ['primary_key_id', 'id', 'email', 'username', 'first_name', 'last_name', 'is_staff', 'is_active', 'signup_plan']
+    list_display = ['primary_key_id', 'id', 'email', 'username', 'first_name', 'last_name', 'date_joined', 'is_staff', 'is_active']
     list_display_links = ['id', 'email', 'username']
-    list_filter = ['email', 'username', 'first_name', 'last_name', 'is_staff', 'is_active', 'signup_plan']
+    list_filter = ['email', 'username', 'first_name', 'last_name', 'is_staff', 'is_active']
     fieldsets = (
         (
             _("Login Credentials"),
