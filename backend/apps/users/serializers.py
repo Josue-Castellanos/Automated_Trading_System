@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 User = get_user_model()
 
+
 class UserSerializer(serializers.ModelSerializer):
     gender = serializers.CharField(source="profile.gender")
     phone_number = PhoneNumberField(source="profile.phone_number")
@@ -31,7 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
             "profile_photo",
             "country",
             "city",
-            "plan" 
+            "plan",
         ]
 
     def get_first_name(self, obj):
@@ -39,7 +40,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_last_name(self, obj):
         return obj.last_name.title()
-    
+
     def get_full_name(self, obj):
         first_name = obj.first_name.title()
         last_name = obj.user.last_name.title()
@@ -51,7 +52,16 @@ class UserSerializer(serializers.ModelSerializer):
             representation["admin"] = True
         return representation
 
+
 class CreateUserSerializer(UserCreateSerializer):
     class Meta(UserCreateSerializer.Meta):
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "password", "plan"]
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "password",
+            "plan",
+        ]

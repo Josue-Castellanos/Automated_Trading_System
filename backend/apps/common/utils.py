@@ -1,11 +1,12 @@
-from django.test import TestCase
-
-# Create your tests here.
-from django.core.mail import send_mail
-from django.conf import settings
 import logging
 
+from django.conf import settings
+# Create your tests here.
+from django.core.mail import send_mail
+# from django.test import TestCase
+
 logger = logging.getLogger(__name__)
+
 
 def send_notification_email(subject, message, recipient_list):
     """
@@ -25,7 +26,8 @@ def send_notification_email(subject, message, recipient_list):
         logger.error(f"Failed to send email: {str(e)}")
         return False
 
-def format_currency(amount, currency='USD'):
+
+def format_currency(amount, currency="USD"):
     """
     Utility function to format currency amounts
     """
@@ -34,13 +36,14 @@ def format_currency(amount, currency='USD'):
     except (ValueError, TypeError):
         return "0.00 {}".format(currency)
 
+
 def get_client_ip(request):
     """
     Utility function to get client IP address
     """
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
+        ip = x_forwarded_for.split(",")[0]
     else:
-        ip = request.META.get('REMOTE_ADDR')
+        ip = request.META.get("REMOTE_ADDR")
     return ip

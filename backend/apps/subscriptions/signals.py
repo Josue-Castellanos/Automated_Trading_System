@@ -1,11 +1,15 @@
-from django.utils import timezone
 import logging
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
+
 from backend.settings.base import AUTH_USER_MODEL
-from .models import Subscription, Plan
+
+from .models import Plan, Subscription
 
 logger = logging.getLogger(__name__)
+
 
 @receiver(post_save, sender=AUTH_USER_MODEL)
 def create_initial_subscription(sender, instance, created, **kwargs):
@@ -23,7 +27,7 @@ def create_initial_subscription(sender, instance, created, **kwargs):
         else:
             plan = Plan.PRO
             is_trial = True
-            end_date = timezone.now() + timezone.timedelta(days=7) 
+            end_date = timezone.now() + timezone.timedelta(days=7)
 
         Subscription.objects.create(
             user=instance,
@@ -35,13 +39,18 @@ def create_initial_subscription(sender, instance, created, **kwargs):
         logger.info(f"Subscription created for {instance.email}")
 
     except Exception as e:
-        logger.error(f"Subscription creation failed for {instance.email}: {str(e)}")
+        logger.error(
+            f"Subscription creation failed for {instance.email}: {str(e)}"
+        )
 
 
 @receiver(post_save, sender=Subscription)
 def update_profile_subscription(sender, instance, created, **kwargs):
-    """Updates the profile's subscription reference when subscription is created/updated"""
-    if hasattr(instance.user, 'profile'):
+    """
+    Updates the profile's subscription
+    reference when subscription is created/updated
+    """
+    if hasattr(instance.user, "profile"):
         instance.user.profile.subscription = instance
         instance.user.profile.save()
         logger.info(f"Profile subscription updated for {instance.user.email}")

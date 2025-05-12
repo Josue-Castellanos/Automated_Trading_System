@@ -1,9 +1,12 @@
-import pandas as pd
-import json
 import asyncio
+import json
+
+import pandas as pd
 import websockets
+
+from backend.apps.trading.utils import (convert_epoch_to_datetime, datetime,
+                                        time)
 from backend.settings.config import Settings
-from backend.apps.trading.utils import convert_epoch_to_datetime, datetime, time
 
 
 class Stream:
@@ -14,7 +17,9 @@ class Stream:
         self._websocket = None
         self.active = False
         self.df = None
-        self.one_minute_data = []  # Stores 1-minute candles before forming a 3-minute candle
+        self.one_minute_data = (
+            []
+        )  # Stores 1-minute candles before forming a 3-minute candle
         self.on_new_candle = check_momentum_chain
 
     def set_dataframe(self, df):
@@ -29,7 +34,10 @@ class Stream:
         """
         while self.market_is_open():
             try:
-                async with websockets.connect(self.streamer_info.get('streamerSocketUrl'), ping_timeout=ping_timeout) as self._websocket:
+                async with websockets.connect(
+                    self.streamer_info.get("streamerSocketUrl"),
+                    ping_timeout=ping_timeout,
+                ) as self._websocket:
                     print("Connected to streaming server.")
 
                     self._request_id += 1
@@ -37,13 +45,21 @@ class Stream:
                         "service": "ADMIN",
                         "command": "LOGIN",
                         "requestid": self._request_id,
-                        "SchwabClientCustomerId": self.streamer_info.get("schwabClientCustomerId"),
-                        "SchwabClientCorrelId": self.streamer_info.get("schwabClientCorrelId"),
+                        "SchwabClientCustomerId": self.streamer_info.get(
+                            "schwabClientCustomerId"
+                        ),
+                        "SchwabClientCorrelId": self.streamer_info.get(
+                            "schwabClientCorrelId"
+                        ),
                         "parameters": {
                             "Authorization": self.settings.ACCESS_TOKEN,
-                            "SchwabClientChannel": self.streamer_info.get("schwabClientChannel"),
-                            "SchwabClientFunctionId": self.streamer_info.get("schwabClientFunctionId")
-                        }
+                            "SchwabClientChannel": self.streamer_info.get(
+                                "schwabClientChannel"
+                            ),
+                            "SchwabClientFunctionId": self.streamer_info.get(
+                                "schwabClientFunctionId"
+                            ),
+                        },
                     }
                     await self._websocket.send(json.dumps(login_payload))
 
@@ -53,23 +69,30 @@ class Stream:
 
                         if "response" in data:
                             for res in data["response"]:
-                                if res.get("command") == "LOGIN" and res.get("content", {}).get("code") == 0:
+                                if (
+                                    res.get("command") == "LOGIN"
+                                    and res.get("content", {}).get("code") == 0
+                                ):
                                     print("Login successful.")
                                     break
                             else:
-                                continue  
+                                continue
                         break
 
                     subscribe_payload = {
                         "service": "CHART_EQUITY",
                         "command": "SUBS",
                         "requestid": self._request_id,
-                        "SchwabClientCustomerId": self.streamer_info.get("schwabClientCustomerId"),
-                        "SchwabClientCorrelId": self.streamer_info.get("schwabClientCorrelId"),
+                        "SchwabClientCustomerId": self.streamer_info.get(
+                            "schwabClientCustomerId"
+                        ),
+                        "SchwabClientCorrelId": self.streamer_info.get(
+                            "schwabClientCorrelId"
+                        ),
                         "parameters": {
                             "keys": ["SPY", "QQQ", "IWM", "DIA"],
-                            "fields": "0, 1, 2, 3, 4, 5, 6, 7, 8"
-                        }
+                            "fields": "0, 1, 2, 3, 4, 5, 6, 7, 8",
+                        },
                     }
                     await self._websocket.send(json.dumps(subscribe_payload))
                     print("Subscribed to SPY 1-minute data.")
@@ -83,11 +106,11 @@ class Stream:
                 return Exception
             except asyncio.exceptions.CancelledError:
                 return asyncio.exceptions.CancelledError
-            except KeyboardInterrupt: 
+            except KeyboardInterrupt:
                 print("")
             self.stop()
             print("WebSocket stream stopped.")
-            return 
+            return
 
     def start(self, receiver):
         """
@@ -106,7 +129,6 @@ class Stream:
             self.active = False
             print("Stream stopping...")
 
-
     def market_is_open(self):
         """
         Check if the current time is within market hours
@@ -119,10 +141,11 @@ class Stream:
 
 async def process_data(data, stream):
     """
-    Processes incoming 1-minute data, aggregates into 3-minute candles, and saves to CSV.
+    Processes incoming 1-minute data,
+    aggregates into 3-minute candles, and saves to CSV.
     """
     parsed_data = json.loads(data)
-    
+
     if "data" in parsed_data:
         for item in parsed_data["data"]:
             for content in item["content"]:
@@ -136,7 +159,14 @@ async def process_data(data, stream):
                 }
 
                 print("")
-                print(f"Timestamp: {new_candle['Datetime']}, Open Price: {new_candle['Open']}, High Price: {new_candle['High']}, Low Price: {new_candle['Low']}, Close Price: {new_candle['Close']}, Volume: {new_candle['Volume']}")
+                print(
+                    f"Timestamp: {new_candle['Datetime']}, "
+                    f"Open Price: {new_candle['Open']}, "
+                    f"High Price: {new_candle['High']}, "
+                    f"Low Price: {new_candle['Low']}, "
+                    f"Close Price: {new_candle['Close']}, "
+                    f"Volume: {new_candle['Volume']}"
+                )
 
                 # Store 1-minute data
                 stream.one_minute_data.append(new_candle)
@@ -148,17 +178,23 @@ async def process_data(data, stream):
 
 def _aggregate_three_minute_candle(stream):
     """
-    Aggregates stored 1-minute candles into a single 5-minute candle and appends to CSV.
+    Aggregates stored 1-minute candles into a
+    single 5-minute candle and appends to CSV.
     """
     if len(stream.one_minute_data) < 3:
         return
 
     three_minute_candle = {
-        "Datetime": stream.one_minute_data[0]["Datetime"],                      # First timestamp of the group
-        "Open": stream.one_minute_data[0]["Open"],                              # First 1-minute candle 
+        # First timestamp of the group
+        "Datetime": stream.one_minute_data[0][
+            "Datetime"
+        ],
+        # First 1-minute candle
+        "Open": stream.one_minute_data[0]["Open"],
         "High": max(candle["High"] for candle in stream.one_minute_data),
         "Low": min(candle["Low"] for candle in stream.one_minute_data),
-        "Close": stream.one_minute_data[-1]["Close"],                           # Last 1-minute candle
+        # Last 1-minute candle
+        "Close": stream.one_minute_data[-1]["Close"],
         "Volume": sum(candle["Volume"] for candle in stream.one_minute_data),
     }
 
@@ -168,7 +204,7 @@ def _aggregate_three_minute_candle(stream):
 
     # Append to main dataframe
     stream.df = pd.concat([stream.df, new_df])
-    stream.df.sort_index(inplace=True)                    
+    stream.df.sort_index(inplace=True)
     print(stream.df.tail())
 
     # Clear stored 1-minute candles
@@ -177,4 +213,3 @@ def _aggregate_three_minute_candle(stream):
     # Notify client if callback is set
     if stream.on_new_candle:
         stream.on_new_candle()
-

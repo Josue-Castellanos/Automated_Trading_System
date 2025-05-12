@@ -1,7 +1,8 @@
-from backend.apps.trading.client import Client, market_is_open
-from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
+from apscheduler.schedulers.background import BackgroundScheduler
+
 from backend.apps.candles.token.tokens import Tokens
+from backend.apps.trading.client import Client, market_is_open
 
 
 class Scheduler:
@@ -9,11 +10,11 @@ class Scheduler:
         self.scheduler = BackgroundScheduler()
         self.client = None
 
-        tz = pytz.timezone('America/Los_Angeles')
+        tz = pytz.timezone("America/Los_Angeles")
 
         # Schedule the start and stop of the client with the specified timezone
-        self.scheduler.add_job(self.start, 'cron', hour=6, minute=30, timezone=tz)
-        self.scheduler.add_job(self.stop, 'cron', hour=12, minute=50, timezone=tz)
+        self.scheduler.add_job(self.start, "cron", hour=6, minute=30, timezone=tz)
+        self.scheduler.add_job(self.stop, "cron", hour=12, minute=50, timezone=tz)
 
         # Check if market is already open when script starts
         if market_is_open():
@@ -21,14 +22,12 @@ class Scheduler:
 
         # Start the scheduler
         self.scheduler.start()
-    
 
     def start(self):
         if self.client is None:
             print("Client started\n")
-            frequency = 6                         ## <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
+            frequency = 6  # <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
             self.client = Client(frequency)
-
 
     def stop(self):
         if self.client:

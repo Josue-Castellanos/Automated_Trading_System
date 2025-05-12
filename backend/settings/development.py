@@ -1,3 +1,4 @@
+# flake8: noqa: F403
 from .base import *
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -13,11 +14,11 @@ SITE_NAME = "Algo Chart"
 
 DATABASES = {
     "default": {
-        'ENGINE': env("POSTGRES_ENGINE"),
-        'NAME': env("POSTGRES_DB"),
-        'USER': env("POSTGRES_USER"),
-        'PASSWORD': env("POSTGRES_PASSWORD"),
-        'HOST': env("PG_HOST"),
-        'PORT': env("PG_PORT"),
+        "ENGINE": env("POSTGRES_ENGINE"),
+        "NAME": env("POSTGRES_DB"),
+        "USER": env("POSTGRES_USER"),
+        "PASSWORD": env("POSTGRES_PASSWORD"),
+        "HOST": env("PG_HOST"),
+        "PORT": env("PG_PORT"),
     }
 }
