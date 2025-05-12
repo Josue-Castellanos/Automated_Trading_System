@@ -29,6 +29,10 @@ CORS_ALLOWED_ORIGINS = [
     env("LOCALHOST"),
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8080",
+]
+
 # Application definition
 DJANGO_APPS = [
     "backend.apps.payments.apps.PaymentsConfig",
