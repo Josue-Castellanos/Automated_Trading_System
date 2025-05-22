@@ -25,13 +25,14 @@ DEBUG = env("DEBUG")
 
 ALLOWED_HOSTS = env("ALLOWED_HOSTS").split(" ")
 
-CORS_ALLOWED_ORIGINS = [
-    env("LOCALHOST"),
-]
+# CORS_ALLOWED_ORIGINS = [
+#     env("LOCALHOST"),
+# ]
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:8080",
-]
+# CSRF_TRUSTED_ORIGINS = [
+#     "http://localhost:8080",
+#     "http://localhost:5557",
+# ]
 
 # Application definition
 DJANGO_APPS = [
@@ -43,9 +44,9 @@ DJANGO_APPS = [
     "backend.apps.users.apps.UsersConfig",
     "backend.apps.profiles.apps.ProfilesConfig",
     "backend.apps.common.apps.CommonConfig",
+    "django.contrib.contenttypes",
     "django.contrib.admin",
     "django.contrib.auth",
-    "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
@@ -55,22 +56,24 @@ DJANGO_APPS = [
 SITE_ID = 1
 
 THIRD_PARTY_APPS = [
-    "whitenoise.runserver_nostatic",
+    # "whitenoise.runserver_nostatic",
     "rest_framework",
     "django_filters",
     "django_countries",
     "phonenumber_field",
     "djoser",
     "rest_framework_simplejwt",
-    "corsheaders",
+    # "corsheaders",
+    "djcelery_email",
+    'django_celery_results',
+    'django_celery_beat',
 ]
 
-AUTH_USER_MODEL = "users.User"
 
 INSTALLED_APPS = THIRD_PARTY_APPS + DJANGO_APPS
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
+    # "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -147,8 +150,10 @@ MEDIA_ROOT = BASE_DIR / "mediafiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+AUTH_USER_MODEL = "users.User"
+
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATIONCLASSES": (
+    "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     )
 }

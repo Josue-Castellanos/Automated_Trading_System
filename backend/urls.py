@@ -1,4 +1,5 @@
-# from django.conf import settings
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
@@ -11,7 +12,6 @@ urlpatterns = [
     path("api/v1/profile/", include("backend.apps.profiles.urls")),
     path("api/price_history/", api_price_history, name="api_price_history"),
     path("api/market_phase/", api_market_phase, name="api_market_phase"),
-    # path('api/drawing/', api_drawing, name='api_drawing')
 ]
 
 admin.site.site_header = "AlgoChart Admin"

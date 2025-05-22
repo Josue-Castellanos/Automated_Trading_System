@@ -1,57 +1,45 @@
-from rest_framework import permissions, status, viewsets
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from backend.apps.common.permissions import IsOwner
-
+from .exceptions import NotYourProfile, ProfileNotFound
 from .models import Profile
+from .renders import ProfileJSONRenderer
 from .serializers import ProfileSerializer, UpdateProfileSerializer
 
 
-class ProfileViewSet(viewsets.ModelViewSet):
-    serializer_class = ProfileSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
-
-    def get_queryset(self):
-        return Profile.objects.filter(user=self.request.user)
-
-
-class UpdateProfileView(APIView):
+class GetProfileAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    renderer_classes = [ProfileJSONRenderer]
 
-    def patch(self, request):
-        profile = request.user.profile
+    def get(self, request):
+        user = self.request.user
+        user_profile = Profile.objects.get(user=user)
+        serializer = ProfileSerializer(user_profile, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class UpdateProfileAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    renderer_classes = [ProfileJSONRenderer]
+
+    serializer_class = UpdateProfileSerializer
+
+    def patch(self, request, username):
+        try:
+            Profile.objects.get(user__username=username)
+        except Profile.DoesNotExist:
+            raise ProfileNotFound
+
+        user_name = request.user.username
+        if user_name != username:
+            raise NotYourProfile
+
+        data = request.data
         serializer = UpdateProfileSerializer(
-            profile,
-            data=request.data,
-            partial=True
+            instance=request.user.profile, data=data, partial=True
         )
 
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-class ProfilePhotoUploadView(APIView):
-    parser_classes = (MultiPartParser, FormParser)
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        profile = request.user.profile
-
-        if "profile_photo" not in request.FILES:
-            return Response(
-                {"error": "No photo provided"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        profile.profile_photo = request.FILES["profile_photo"]
-        profile.save()
-
-        serializer = ProfileSerializer(profile)
-        return Response(serializer.data)
+        serializer.is_valid()
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)

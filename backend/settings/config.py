@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     EMAIL_HOST_PASSWORD: str
     EMAIL_PORT: int
 
+    CELERY_BROKER: str
+    CELERY_BACKEND: str
+    CELERY_EMAIL_BACKEND: str
+
     @classmethod
     def reload(cls):
         """

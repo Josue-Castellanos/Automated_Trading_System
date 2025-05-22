@@ -49,6 +49,7 @@ class Subscription(TimeStampedUUIDModel):
     is_trial = models.BooleanField(default=False)
     active = models.BooleanField(default=True)
 
+
     def save(self, *args, **kwargs):
         self.price = PLAN_PRICES[self.plan]
         super().save(*args, **kwargs)

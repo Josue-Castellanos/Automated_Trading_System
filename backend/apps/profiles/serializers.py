@@ -14,9 +14,8 @@ class ProfileSerializer(serializers.ModelSerializer):
     plan = serializers.CharField(
         source="user.subscription.plan", read_only=True
     )
-    features = serializers.SerializerMethodField(
-        source="user.subscription.features", read_only=True
-    )
+    features = serializers.SerializerMethodField(read_only=True)
+
 
     class Meta:
         model = Profile
@@ -41,6 +40,10 @@ class ProfileSerializer(serializers.ModelSerializer):
         first_name = obj.user.first_name.title()
         last_name = obj.user.last_name.title()
         return f"{first_name} {last_name}"
+    
+    def get_features(self, obj):
+        """Returns the feature list for the plan"""
+        return obj.user.subscription.features
 
 
 class UpdateProfileSerializer(serializers.ModelSerializer):
