@@ -1,0 +1,32 @@
+.watchlist-widget {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .watchlist-container {
+    flex: 1;
+    padding: 8px;
+  }
+  
+  .watchlist-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #2a2e39;
+    margin-bottom: 4px;
+  }
+  
+  .watchlist-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+  
+  .positive {
+    color: #26a69a;
+  }
+  
+  .negative {
+    color: #ef5350;
+  }

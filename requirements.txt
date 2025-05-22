@@ -128,3 +128,13 @@ webencodings==0.5.1
 websockets==14.1
 whitenoise==6.6.0
 yfinance==0.2.54
+celery>=5.2.3
+flower>=1.0.0
+redis>=4.0.0
+watchdog>=2.1.9
+django-celery-email
+argh
+PyYAML
+django-celery-results
+django-celery-beat
+

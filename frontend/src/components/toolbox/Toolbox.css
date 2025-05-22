@@ -1,0 +1,22 @@
+.toolbox {
+    width: 200px;
+    padding: 16px;
+    background: #1e222d;
+    color: white;
+    border-right: 1px solid #2a2e39;
+  }
+  
+  .toolbox-item {
+    padding: 8px;
+    margin: 8px 0;
+    background: #2a2e39;
+    border-radius: 4px;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .toolbox-item svg {
+    color: #6a6d78;
+  }

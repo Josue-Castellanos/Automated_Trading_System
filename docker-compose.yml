@@ -10,14 +10,27 @@ services:
             - .:/app
             - static_volume:/app/staticfiles
             - media_volume:/app/mediafiles
-        # ports:
-        #     - "8000:8000"
+        expose:
+            - "8000"
         env_file:
             - .env
         depends_on:
             - postgres-db
+            - redis
         networks:
             - trading-react
+
+    frontend:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile.dev
+        restart: on-failure
+        volumes:
+            - ./frontend:/app
+            - /app/node_modules
+        networks:
+            - trading-react
+
 
     postgres-db:
         image: postgres:15-alpine
@@ -29,6 +42,44 @@ services:
             - POSTGRES_DB=${POSTGRES_DB}
             - POSTGRES_USER=${POSTGRES_USER}
             - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        networks:
+            - trading-react
+
+    redis:
+        image: redis:5-alpine
+        networks:
+            - trading-react
+    
+    celery_worker:
+        build:
+            context: .
+            dockerfile: ./docker/local/django/Dockerfile
+        command: /start-celeryworker
+        volumes:
+            - .:/app
+        env_file:
+            - .env
+        depends_on:
+            - redis
+            - postgres-db
+        networks:
+            - trading-react
+
+    flower:
+        build: 
+            context: .
+            dockerfile: ./docker/local/django/Dockerfile
+        command: /start-flower
+        volumes:
+            - .:/app
+        env_file:
+            - .env
+        ports:
+            - "5557:5555"
+        depends_on:
+            - redis
+            - postgres-db
+            - celery_worker 
         networks:
             - trading-react
 

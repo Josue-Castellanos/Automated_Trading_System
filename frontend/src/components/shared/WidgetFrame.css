@@ -1,0 +1,85 @@
+
+/* Widget Frame Container */
+.widget-frame {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Header Trigger Area */
+.widget-header-trigger {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px; /* Adjust sensitivity of hover area */
+  z-index: 20;
+  background: transparent;
+}
+
+/* Main Header Styles */
+.widget-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #1976d2;
+  color: white;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+  z-index: 15;
+  opacity: 0;
+  pointer-events: none; /* Ensure header is interactive */
+}
+
+/* .widget-header-trigger:hover ~ .widget-header,
+.widget-header:hover {
+  transform: translateY(0);
+} */
+
+.widget-header.visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Ensure header stays on top when visible */
+.widget-header.visible ~ .widget-content {
+  position: relative;
+  z-index: 10;
+}
+
+/* Header Content Sections */
+.widget-header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  height: 40px;
+}
+
+.widget-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Content Area */
+.widget-content {
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+
+/* Ensure dropdowns appear above content */
+.MuiAutocomplete-popper,
+.MuiMenu-paper {
+  z-index: 30 !important;
+}
+
+/* Ensure dropdown triggers are always clickable */
+.widget-header-main * {
+  pointer-events: auto;
+}

@@ -1,0 +1,2476 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ultimate Trading Chart</title>
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/technicalindicators/dist/technicalindicators.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #131722;
+            color: #b2b5be;
+            height: 100%;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+        }
+        #chart-container {
+            width: 100%;
+            height: 100%;
+            flex: 1;
+            position: relative;
+        }
+
+        #price-chart {
+            width: 100%;
+            height: 100%;
+            min-width: 100px;
+            min-height: 400px;
+            position: relative;
+        }
+        #toolbar {
+            display: flex;
+            padding: 8px;
+            background: #1e222d;
+            border-bottom: 1px solid #2b3139;
+            flex-wrap: wrap;
+        }
+        #indicator-toolbar {
+            display: flex;
+            padding: 8px;
+            background: #1e222d;
+            border-bottom: 1px solid #2b3139;
+            flex-wrap: wrap;
+        }
+        #advanced-toolbar {
+            display: flex;
+            padding: 8px;
+            background: #1e222d;
+            border-bottom: 1px solid #2b3139;
+            flex-wrap: wrap;
+        }
+        button {
+            background: #2b3139;
+            color: #b2b5be;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            margin: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            min-width: 80px;
+        }
+        button:hover {
+            background: #3a424e;
+        }
+        button.active {
+            background: #3a6fc4;
+            color: white;
+        }
+        select {
+            background: #2b3139;
+            color: #b2b5be;
+            border: none;
+            border-radius: 4px;
+            padding: 6px;
+            margin-right: 8px;
+        }
+        .toolbar-section {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+        }
+        .timeframe-selector {
+            margin-left: auto;
+        }
+        #volume-container {
+            height: 100px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+        }
+        .modal-content {
+            background-color: #1e222d;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #2b3139;
+            width: 300px;
+            border-radius: 5px;
+        }
+        .modal-content label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        .modal-content input, .modal-content select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            background: #2b3139;
+            border: 1px solid #3a424e;
+            color: #b2b5be;
+            border-radius: 4px;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+        }
+        .modal-buttons button {
+            margin-left: 10px;
+        }
+        .pattern-recognition-btn {
+            background: #6a1b9a;
+        }
+
+        .pattern-marker {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+        }
+        .pattern-info-window {
+            position: absolute;
+            background: #2b3139;
+            border: 1px solid #3a424e;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 12px;
+            z-index: 101;
+            pointer-events: none;
+            min-width: 150px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .pattern-info-window h4 {
+            margin: 0 0 5px 0;
+            color: #3a6fc4;
+        }
+        .pattern-info-window p {
+            margin: 0;
+            color: #b2b5be;
+        }
+        .pattern-info-window .strength {
+            margin-top: 5px;
+            font-weight: bold;
+        }
+        .pattern-info-window .bullish {
+            color: #26a69a;
+        }
+        .pattern-info-window .bearish {
+            color: #ef5350;
+        }
+
+        .pattern-marker {
+            position: absolute;
+            background-color: rgba(255, 152, 0, 0.2);
+            border: 1px solid #FF9800;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .pattern-label {
+            position: absolute;
+            color: #FF9800;
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 11;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="toolbar">
+            <div class="toolbar-section">
+                <span>Drawing Tools:</span>
+                <button id="cursor-btn" >Cursor</button>
+                <button id="line-btn" >Line</button>
+                <button id="ray-btn">Ray</button>
+                <button id="hline-btn">Horizontal</button>
+                <button id="vline-btn">Vertical</button>
+                <button id="trendline-btn">Trendline</button>
+                <button id="fib-retracement-btn">Fib Retracement</button>
+                <button id="rectangle-btn">Rectangle</button>
+                <button id="ellipse-btn">Ellipse</button>
+                <button id="arrow-btn">Arrow</button>
+                <button id="gann-btn">Gann Fan</button>
+                <button id="clear-btn">Clear All</button>
+            </div>
+            
+            <div class="timeframe-selector">
+                <select id="timeframe-select">
+                    <option value="1">1m</option>
+                    <option value="5">5m</option>
+                    <option value="15">15m</option>
+                    <option value="30">30m</option>
+                    <option value="60">1h</option>
+                    <option value="240">4h</option>
+                    <option value="1D">1D</option>
+                    <option value="1W">1W</option>
+                </select>
+                <button id="save-drawings-btn">Save Drawings</button>
+                <button id="load-drawings-btn">Load Drawings</button>
+            </div>
+        </div>
+        
+        <div id="indicator-toolbar">
+            <div class="toolbar-section">
+                <span>Indicators:</span>
+                <button id="sma-btn">SMA</button>
+                <button id="ema-btn">EMA</button>
+                <button id="rsi-btn">RSI</button>
+                <button id="macd-btn">MACD</button>
+                <button id="bollinger-btn">Bollinger</button>
+                <button id="volume-btn">Volume</button>
+                <button id="atr-btn">ATR</button>
+                <button id="stochastic-btn">Stochastic</button>
+                <button id="elder-ray-btn">Elder Ray</button>
+                <button id="ttm-squeeze-btn">TTM Squeeze</button>
+                <button id="remove-indicators-btn">Remove Indicators</button>
+            </div>
+        </div>
+        
+        <div id="advanced-toolbar">
+            <div class="toolbar-section">
+                <span>Advanced Tools:</span>
+                <button id="elliott-wave-btn" class="pattern-recognition-btn">Elliott Wave</button>
+                <button id="head-shoulders-btn" class="pattern-recognition-btn">Head & Shoulders</button>
+                <button id="double-top-btn" class="pattern-recognition-btn">Double Top/Bottom</button>
+                <button id="triangle-btn" class="pattern-recognition-btn">Triangles</button>
+                <button id="wedge-btn" class="pattern-recognition-btn">Wedges</button>
+                <button id="flags-btn" class="pattern-recognition-btn">Flags/Pennants</button>
+            </div>
+        </div>
+        <div id="pattern-markers-container"></div>
+        <div id="chart-container">
+            <div id="volume-container"></div>
+            <div id="price-chart"></div>
+        </div>
+    </div>
+
+    <!-- Indicator Settings Modal -->
+    <div id="indicator-settings-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="indicator-modal-title">Indicator Settings</h3>
+            <div id="indicator-settings-form">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+            <div class="modal-buttons">
+                <button id="cancel-indicator-btn">Cancel</button>
+                <button id="apply-indicator-btn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawing Save/Load Modal -->
+    <div id="drawings-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="drawings-modal-title">Drawing Management</h3>
+            <div id="drawings-modal-content">
+                <label for="drawings-name">Name:</label>
+                <input type="text" id="drawings-name" placeholder="Enter drawing set name">
+                <label for="drawings-description">Description:</label>
+                <input type="text" id="drawings-description" placeholder="Optional description">
+                <div id="saved-drawings-list"></div>
+            </div>
+            <div class="modal-buttons">
+                <button id="cancel-drawings-btn">Cancel</button>
+                <button id="confirm-drawings-btn">Confirm</button>
+                <button id="delete-drawings-btn" style="display: none;">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Previous chart initialization and basic functionality remains
+        const chartContainer = document.getElementById('price-chart');
+        const volumeContainer = document.getElementById('volume-container');
+        
+        
+        const chart = LightweightCharts.createChart(chartContainer, {
+            layout: {
+                backgroundColor: '#131722',
+                textColor: '#d1d4dc',
+            },
+            grid: {
+                vertLines: {
+                    color: 'rgba(42, 46, 57, 0.5)',
+                },
+                horzLines: {
+                    color: 'rgba(42, 46, 57, 0.5)',
+                },
+            },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+            },
+            rightPriceScale: {
+                borderColor: 'rgba(197, 203, 206, 0.2)',
+            },
+            timeScale: {
+                borderColor: 'rgba(197, 203, 206, 0.2)',
+                timeVisible: true,
+                secondsVisible: false,
+                timeZone: 'America/New_York',
+            },
+            handleScroll: {
+                mouseWheel: true,
+                pressedMouseMove: true,
+            },
+            handleScale: {
+                axisPressedMouseMove: true,
+                mouseWheel: true,
+                pinch: true,
+            },
+            width: container.clientWidth,
+            height: container.clientHeight
+        });
+
+        const volumeChart = LightweightCharts.createChart(volumeContainer, {
+            height: 100,
+            layout: {
+                backgroundColor: '#131722',
+                textColor: '#d1d4dc',
+            },
+            grid: {
+                vertLines: {
+                    color: 'rgba(42, 46, 57, 0)',
+                },
+                horzLines: {
+                    color: 'rgba(42, 46, 57, 0)',
+                },
+            },
+            rightPriceScale: {
+                visible: false,
+            },
+            timeScale: {
+                visible: false,
+            },
+            handleScroll: {
+                mouseWheel: false,
+                pressedMouseMove: false,
+            },
+            handleScale: {
+                axisPressedMouseMove: false,
+                mouseWheel: false,
+                pinch: false,
+            },
+        });
+
+        // Link time scales
+        const mainTimeScale = chart.timeScale();
+        const volumeTimeScale = volumeChart.timeScale();
+        
+        mainTimeScale.subscribeVisibleLogicalRangeChange(range => {
+            volumeTimeScale.setVisibleLogicalRange(range);
+        });
+
+        // Create series
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderDownColor: '#ef5350',
+            borderUpColor: '#26a69a',
+            wickDownColor: '#ef5350',
+            wickUpColor: '#26a69a',
+        });
+
+        const volumeSeries = volumeChart.addHistogramSeries({
+            color: '#26a69a',
+            priceFormat: {
+                type: 'volume',
+            },
+            priceScaleId: '',
+            priceLineVisible: false,
+        });
+
+        volumeSeries.priceScale().applyOptions({
+            scaleMargins: {
+                top: 0.8,
+                bottom: 0,
+            },
+        });
+
+        const sampleCandleData = [
+            { time: '2018-12-22', open: 75.16, high: 82.84, low: 36.16, close: 45.72 },
+            { time: '2018-12-23', open: 45.12, high: 53.90, low: 45.12, close: 48.09 },
+            { time: '2018-12-24', open: 60.71, high: 60.71, low: 53.39, close: 59.29 },
+            { time: '2018-12-25', open: 68.26, high: 68.26, low: 59.04, close: 60.50 },
+            { time: '2018-12-26', open: 67.71, high: 105.85, low: 66.67, close: 91.04 },
+            { time: '2018-12-27', open: 91.04, high: 121.40, low: 82.70, close: 111.40 },
+            { time: '2018-12-28', open: 111.51, high: 142.83, low: 103.34, close: 131.25 },
+            { time: '2018-12-29', open: 131.33, high: 151.17, low: 77.68, close: 96.43 },
+            { time: '2018-12-30', open: 106.33, high: 110.20, low: 90.39, close: 98.10 },
+            { time: '2018-12-31', open: 109.87, high: 114.69, low: 85.66, close: 111.26 },
+        ];
+
+        // candleSeries.setData(priceData);
+        candleSeries.setData(sampleCandleData);
+        
+        const sampleVolumeData = sampleCandleData.map((candle, i) => ({
+            time: candle.time,
+            value: Math.floor(Math.random() * 1000) + 500,
+            color: candle.close >= candle.open ? '#26a69a' : '#ef5350'
+        }));
+
+        volumeSeries.setData(sampleVolumeData);
+        chart.timeScale().fitContent();
+
+
+        // =============================================
+        // COMPLETE DRAWING IMPLEMENTATIONS
+        // =============================================
+
+        // Enhanced Drawing Tools Implementation
+        let activeDrawingTool = null;
+        let drawings = [];
+        let currentDrawing = null;
+        let savedDrawingSets = JSON.parse(localStorage.getItem('savedDrawingSets')) || [];
+
+        // Modal elements
+        const indicatorModal = document.getElementById('indicator-settings-modal');
+        const drawingsModal = document.getElementById('drawings-modal');
+        const indicatorSettingsForm = document.getElementById('indicator-settings-form');
+        const savedDrawingsList = document.getElementById('saved-drawings-list');
+
+        // Serialize drawings for saving
+        function serializeDrawings() {
+            return drawings.map(drawing => {
+                const serialized = {
+                    type: drawing.type,
+                    points: drawing.points.map(p => ({
+                        time: p.time,
+                        price: p.price || p.y,
+                        x: p.x,
+                        y: p.y
+                    })),
+                    options: drawing.options || {}
+                };
+                
+                if (drawing.fibLevels) {
+                    serialized.fibLevels = drawing.fibLevels;
+                }
+                
+                if (drawing.gannAngles) {
+                    serialized.gannAngles = drawing.gannAngles;
+                }
+                
+                return serialized;
+            });
+        }
+
+        // Deserialize drawings for loading
+        function deserializeDrawings(serializedDrawings) {
+            // Clear existing drawings
+            drawings.forEach(drawing => {
+                if (drawing.line) chart.removeSeries(drawing.line);
+                if (drawing.rect) chart.removeShape(drawing.rect);
+                if (drawing.ellipse) chart.removeShape(drawing.ellipse);
+                if (drawing.fibRetracement) drawing.fibRetracement.forEach(s => chart.removeSeries(s));
+                if (drawing.gannFan) drawing.gannFan.forEach(s => chart.removeSeries(s));
+            });
+            
+            drawings = [];
+            
+            // Create new drawings from serialized data
+            serializedDrawings.forEach(serialized => {
+                const drawing = {
+                    type: serialized.type,
+                    points: serialized.points.map(p => ({
+                        time: p.time,
+                        price: p.price,
+                        x: p.x,
+                        y: p.y
+                    })),
+                    options: serialized.options || {}
+                };
+                
+                switch (serialized.type) {
+                    case 'line':
+                    case 'ray':
+                    case 'trendline':
+                    case 'arrow':
+                        drawing.line = chart.addLineSeries({
+                            color: drawing.options.color || '#2962FF',
+                            lineWidth: drawing.options.lineWidth || 2,
+                            lineStyle: drawing.options.lineStyle || 0,
+                            lineType: serialized.type === 'ray' ? 
+                                LightweightCharts.LineType.Ray : 
+                                (serialized.type === 'trendline' ? 
+                                    LightweightCharts.LineType.WithAngle : 
+                                    LightweightCharts.LineType.Simple),
+                        });
+                        drawing.line.setData(drawing.points);
+                        break;
+                        
+                    case 'horizontal':
+                        drawing.line = chart.addLineSeries({
+                            color: drawing.options.color || '#2962FF',
+                            lineWidth: drawing.options.lineWidth || 1,
+                            lineStyle: drawing.options.lineStyle || 2,
+                        });
+                        drawing.line.setData([
+                            { time: priceData[0].time, value: drawing.points[0].price },
+                            { time: priceData[priceData.length - 1].time, value: drawing.points[0].price },
+                        ]);
+                        break;
+                        
+                    case 'vertical':
+                        drawing.line = chart.addLineSeries({
+                            color: drawing.options.color || '#2962FF',
+                            lineWidth: drawing.options.lineWidth || 1,
+                            lineStyle: drawing.options.lineStyle || 2,
+                        });
+                        const priceRange = chart.priceScale().getPriceRange();
+                        drawing.line.setData([
+                            { time: drawing.points[0].time, value: priceRange.minValue },
+                            { time: drawing.points[0].time, value: priceRange.maxValue },
+                        ]);
+                        break;
+                        
+                    case 'rectangle':
+                        drawing.rect = chart.addRectangle({
+                            top: Math.max(drawing.points[0].price, drawing.points[1].price),
+                            bottom: Math.min(drawing.points[0].price, drawing.points[1].price),
+                            left: Math.min(drawing.points[0].time, drawing.points[1].time),
+                            right: Math.max(drawing.points[0].time, drawing.points[1].time),
+                            background: drawing.options.background || 'rgba(41, 98, 255, 0.1)',
+                            borderColor: drawing.options.borderColor || '#2962FF',
+                            borderWidth: drawing.options.borderWidth || 2,
+                        });
+                        break;
+                        
+                    case 'ellipse':
+                        drawing.ellipse = chart.addEllipse({
+                            x: (drawing.points[0].time + drawing.points[1].time) / 2,
+                            y: (drawing.points[0].price + drawing.points[1].price) / 2,
+                            width: Math.abs(drawing.points[1].time - drawing.points[0].time),
+                            height: Math.abs(drawing.points[1].price - drawing.points[0].price),
+                            background: drawing.options.background || 'rgba(41, 98, 255, 0.1)',
+                            borderColor: drawing.options.borderColor || '#2962FF',
+                            borderWidth: drawing.options.borderWidth || 2,
+                        });
+                        break;
+                        
+                    case 'fib-retracement':
+                        const fibLevels = serialized.fibLevels || [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+                        const startPrice = drawing.points[0].price;
+                        const endPrice = drawing.points[1].price;
+                        const priceDiff = endPrice - startPrice;
+                        
+                        drawing.fibRetracement = fibLevels.map(level => {
+                            const series = chart.addLineSeries({
+                                color: level === 0 || level === 1 ? '#FF9800' : '#9E9E9E',
+                                lineWidth: level === 0 || level === 1 ? 2 : 1,
+                                lineStyle: level === 0 || level === 1 ? 0 : 2,
+                            });
+                            
+                            const levelPrice = startPrice + priceDiff * level;
+                            series.setData([
+                                { time: drawing.points[0].time, value: levelPrice },
+                                { time: drawing.points[1].time, value: levelPrice },
+                            ]);
+                            
+                            return series;
+                        });
+                        break;
+                        
+                    case 'gann-fan':
+                        const angles = serialized.gannAngles || [1, 2, 3, 4, 5, 6, 7, 8];
+                        const gannStartTime = drawing.points[0].time;
+                        const gannStartPrice = drawing.points[0].price;
+                        
+                        drawing.gannFan = angles.map(angle => {
+                            const series = chart.addLineSeries({
+                                color: angle === 1 ? '#FF9800' : '#9E9E9E',
+                                lineWidth: angle === 1 ? 2 : 1,
+                                lineType: LightweightCharts.LineType.WithAngle,
+                            });
+                            
+                            // Calculate end point based on angle (simplified)
+                            const timeDiff = 1000 * 60 * 60 * 24 * 30; // 30 days
+                            const priceDiff = angle * 10; // Simplified Gann angle calculation
+                            
+                            series.setData([
+                                { time: gannStartTime, value: gannStartPrice },
+                                { time: gannStartTime + timeDiff, value: gannStartPrice + priceDiff },
+                            ]);
+                            
+                            return series;
+                        });
+                        break;
+                }
+                
+                drawings.push(drawing);
+            });
+        }
+
+        // Save drawings to localStorage
+        function saveDrawings(name, description) {
+            const serialized = serializeDrawings();
+            const drawingSet = {
+                name,
+                description,
+                data: serialized,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Check if this name already exists
+            const existingIndex = savedDrawingSets.findIndex(set => set.name === name);
+            if (existingIndex >= 0) {
+                savedDrawingSets[existingIndex] = drawingSet;
+            } else {
+                savedDrawingSets.push(drawingSet);
+            }
+            
+            localStorage.setItem('savedDrawingSets', JSON.stringify(savedDrawingSets));
+            updateSavedDrawingsList();
+        }
+
+        // Load drawings from localStorage
+        function loadDrawings(name) {
+            const drawingSet = savedDrawingSets.find(set => set.name === name);
+            if (drawingSet) {
+                deserializeDrawings(drawingSet.data);
+            }
+        }
+
+        // Delete drawings from localStorage
+        function deleteDrawings(name) {
+            savedDrawingSets = savedDrawingSets.filter(set => set.name !== name);
+            localStorage.setItem('savedDrawingSets', JSON.stringify(savedDrawingSets));
+            updateSavedDrawingsList();
+        }
+
+        // Update the saved drawings list in the modal
+        function updateSavedDrawingsList() {
+            savedDrawingsList.innerHTML = '';
+            
+            if (savedDrawingSets.length === 0) {
+                savedDrawingsList.innerHTML = '<p>No saved drawing sets found</p>';
+                return;
+            }
+            
+            const ul = document.createElement('ul');
+            ul.style.listStyle = 'none';
+            ul.style.padding = '0';
+            ul.style.margin = '10px 0';
+            ul.style.maxHeight = '200px';
+            ul.style.overflowY = 'auto';
+            
+            savedDrawingSets.forEach(set => {
+                const li = document.createElement('li');
+                li.style.padding = '8px';
+                li.style.borderBottom = '1px solid #2b3139';
+                li.style.cursor = 'pointer';
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                
+                li.innerHTML = `
+                    <div>
+                        <strong>${set.name}</strong>
+                        <div style="font-size: 12px; color: #9E9E9E;">${set.description || 'No description'}</div>
+                    </div>
+                    <div style="font-size: 12px; color: #9E9E9E;">
+                        ${new Date(set.timestamp).toLocaleString()}
+                    </div>
+                `;
+                
+                li.addEventListener('click', () => {
+                    document.getElementById('drawings-name').value = set.name;
+                    document.getElementById('drawings-description').value = set.description || '';
+                    document.getElementById('delete-drawings-btn').style.display = 'inline-block';
+                });
+                
+                ul.appendChild(li);
+            });
+            
+            savedDrawingsList.appendChild(ul);
+        }
+
+        // Drawing tools implementation
+        function setActiveTool(tool) {
+            activeDrawingTool = tool;
+            document.querySelectorAll('#toolbar button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            if (tool) {
+                event.target.classList.add('active');
+            } else {
+                document.getElementById('cursor-btn').classList.add('active');
+            }
+        }
+
+        function handleCrosshairMove(param) {
+            if (!currentDrawing || !param.point) return;
+            
+            switch (currentDrawing.type) {
+                case 'line':
+                case 'ray':
+                case 'trendline':
+                case 'arrow':
+                    currentDrawing.line.applyOptions({
+                        points: [currentDrawing.points[0], { ...param.point }],
+                    });
+                    break;
+                case 'fib-retracement':
+                    // Update the end point of the fib retracement
+                    currentDrawing.points[1] = param.point;
+                    updateFibRetracement(currentDrawing);
+                    break;
+                case 'gann-fan':
+                    // Update the end point of the gann fan
+                    currentDrawing.points[1] = param.point;
+                    updateGannFan(currentDrawing);
+                    break;
+                case 'rectangle':
+                    currentDrawing.rect.applyOptions({
+                        coordinates: {
+                            top: Math.max(currentDrawing.points[0].y, param.point.y),
+                            bottom: Math.min(currentDrawing.points[0].y, param.point.y),
+                            left: Math.min(currentDrawing.points[0].x, param.point.x),
+                            right: Math.max(currentDrawing.points[0].x, param.point.x),
+                        },
+                    });
+                    break;
+                case 'ellipse':
+                    currentDrawing.ellipse.applyOptions({
+                        x: (currentDrawing.points[0].x + param.point.x) / 2,
+                        y: (currentDrawing.points[0].y + param.point.y) / 2,
+                        width: Math.abs(param.point.x - currentDrawing.points[0].x),
+                        height: Math.abs(param.point.y - currentDrawing.points[0].y),
+                    });
+                    break;
+            }
+        }
+
+        function updateFibRetracement(drawing) {
+            const fibLevels = drawing.fibLevels || [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+            const startPrice = drawing.points[0].price;
+            const endPrice = drawing.points[1].price;
+            const priceDiff = endPrice - startPrice;
+            
+            fibLevels.forEach((level, i) => {
+                const levelPrice = startPrice + priceDiff * level;
+                drawing.fibRetracement[i].setData([
+                    { time: drawing.points[0].time, value: levelPrice },
+                    { time: drawing.points[1].time, value: levelPrice },
+                ]);
+            });
+        }
+
+        function updateGannFan(drawing) {
+            const angles = drawing.gannAngles || [1, 2, 3, 4, 5, 6, 7, 8];
+            const startTime = drawing.points[0].time;
+            const startPrice = drawing.points[0].price;
+            const endTime = drawing.points[1].time;
+            const endPrice = drawing.points[1].price;
+            
+            const timeDiff = endTime - startTime;
+            const priceDiff = endPrice - startPrice;
+            
+            angles.forEach((angle, i) => {
+                // Simplified Gann angle calculation
+                const anglePriceDiff = priceDiff * angle;
+                drawing.gannFan[i].setData([
+                    { time: startTime, value: startPrice },
+                    { time: startTime + timeDiff, value: startPrice + anglePriceDiff },
+                ]);
+            });
+        }
+
+        function handleClick(param) {
+            if (!activeDrawingTool || !param.point) return;
+            
+            if (!currentDrawing) {
+                // Start new drawing
+                currentDrawing = {
+                    type: activeDrawingTool,
+                    points: [param.point],
+                    options: {
+                        color: '#2962FF',
+                        lineWidth: 2,
+                    }
+                };
+                
+                switch (activeDrawingTool) {
+                    case 'line':
+                    case 'ray':
+                    case 'trendline':
+                    case 'arrow':
+                        currentDrawing.line = chart.addLineSeries({
+                            color: currentDrawing.options.color,
+                            lineWidth: currentDrawing.options.lineWidth,
+                        });
+                        currentDrawing.line.setData([param.point, param.point]);
+                        break;
+                    case 'horizontal':
+                        currentDrawing.line = chart.addLineSeries({
+                            color: currentDrawing.options.color,
+                            lineWidth: currentDrawing.options.lineWidth,
+                            lineStyle: 2, // dashed
+                        });
+                        currentDrawing.line.setData([
+                            { time: priceData[0].time, value: param.point.y },
+                            { time: priceData[priceData.length - 1].time, value: param.point.y },
+                        ]);
+                        drawings.push(currentDrawing);
+                        currentDrawing = null;
+                        break;
+                    case 'vertical':
+                        currentDrawing.line = chart.addLineSeries({
+                            color: currentDrawing.options.color,
+                            lineWidth: currentDrawing.options.lineWidth,
+                            lineStyle: 2, // dashed
+                        });
+                        const priceRange = chart.priceScale().getPriceRange();
+                        currentDrawing.line.setData([
+                            { time: param.point.time, value: priceRange.minValue },
+                            { time: param.point.time, value: priceRange.maxValue },
+                        ]);
+                        drawings.push(currentDrawing);
+                        currentDrawing = null;
+                        break;
+                    case 'fib-retracement':
+                        currentDrawing.fibLevels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+                        currentDrawing.fibRetracement = currentDrawing.fibLevels.map(level => {
+                            const series = chart.addLineSeries({
+                                color: level === 0 || level === 1 ? '#FF9800' : '#9E9E9E',
+                                lineWidth: level === 0 || level === 1 ? 2 : 1,
+                                lineStyle: level === 0 || level === 1 ? 0 : 2,
+                            });
+                            return series;
+                        });
+                        break;
+                    case 'gann-fan':
+                        currentDrawing.gannAngles = [1, 2, 3, 4, 5, 6, 7, 8];
+                        currentDrawing.gannFan = currentDrawing.gannAngles.map(angle => {
+                            const series = chart.addLineSeries({
+                                color: angle === 1 ? '#FF9800' : '#9E9E9E',
+                                lineWidth: angle === 1 ? 2 : 1,
+                                lineType: LightweightCharts.LineType.WithAngle,
+                            });
+                            return series;
+                        });
+                        break;
+                    case 'rectangle':
+                        currentDrawing.rect = chart.addRectangle({
+                            top: param.point.y,
+                            bottom: param.point.y,
+                            left: param.point.x,
+                            right: param.point.x,
+                            background: 'rgba(41, 98, 255, 0.1)',
+                            borderColor: currentDrawing.options.color,
+                            borderWidth: currentDrawing.options.lineWidth,
+                        });
+                        break;
+                    case 'ellipse':
+                        currentDrawing.ellipse = chart.addEllipse({
+                            x: param.point.x,
+                            y: param.point.y,
+                            width: 0,
+                            height: 0,
+                            background: 'rgba(41, 98, 255, 0.1)',
+                            borderColor: currentDrawing.options.color,
+                            borderWidth: currentDrawing.options.lineWidth,
+                        });
+                        break;
+                }
+            } else {
+                // Complete the drawing
+                currentDrawing.points.push(param.point);
+                
+                if (activeDrawingTool === 'line' || 
+                    activeDrawingTool === 'ray' || 
+                    activeDrawingTool === 'trendline' ||
+                    activeDrawingTool === 'arrow') {
+                    currentDrawing.line.setData(currentDrawing.points);
+                    
+                    if (activeDrawingTool === 'ray' || activeDrawingTool === 'trendline') {
+                        currentDrawing.line.applyOptions({
+                            lineType: activeDrawingTool === 'ray' ? 
+                                LightweightCharts.LineType.Ray : 
+                                LightweightCharts.LineType.WithAngle,
+                        });
+                    }
+                } else if (activeDrawingTool === 'fib-retracement') {
+                    updateFibRetracement(currentDrawing);
+                } else if (activeDrawingTool === 'gann-fan') {
+                    updateGannFan(currentDrawing);
+                }
+                
+                drawings.push(currentDrawing);
+                currentDrawing = null;
+            }
+        }
+
+
+
+        // =============================================
+        // COMPLETE INDICATOR IMPLEMENTATIONS
+        // =============================================
+
+        // MACD Indicator
+        function addMACD() {
+            // Calculate MACD using technicalindicators library
+            const macdInput = {
+                values: priceData.map(d => d.close),
+                fastPeriod: 12,
+                slowPeriod: 26,
+                signalPeriod: 9,
+                SimpleMAOscillator: false,
+                SimpleMASignal: false
+            };
+            
+            const macdResult = technicalIndicators.MACD.calculate(macdInput);
+            
+            // Create a new pane for MACD
+            const macdPane = chart.addPane();
+            const histogramSeries = chart.addHistogramSeries({
+                pane: macdPane,
+                color: '#26a69a',
+                priceFormat: {
+                    type: 'volume',
+                }
+            });
+            
+            const macdLineSeries = chart.addLineSeries({
+                pane: macdPane,
+                color: '#2962FF',
+                lineWidth: 1
+            });
+            
+            const signalLineSeries = chart.addLineSeries({
+                pane: macdPane,
+                color: '#FF6D00',
+                lineWidth: 1
+            });
+            
+            // Prepare data
+            const histogramData = [];
+            const macdLineData = [];
+            const signalLineData = [];
+            
+            for (let i = 0; i < macdResult.length; i++) {
+                const result = macdResult[i];
+                const time = priceData[i + 26].time; // Offset due to slow period
+                
+                histogramData.push({
+                    time,
+                    value: result.histogram,
+                    color: result.histogram >= 0 ? '#26a69a' : '#ef5350'
+                });
+                
+                macdLineData.push({
+                    time,
+                    value: result.MACD
+                });
+                
+                signalLineData.push({
+                    time,
+                    value: result.signal
+                });
+            }
+            
+            // Set data
+            histogramSeries.setData(histogramData);
+            macdLineSeries.setData(macdLineData);
+            signalLineSeries.setData(signalLineData);
+            
+            // Add to indicator series for later removal
+            indicatorSeries.push(histogramSeries, macdLineSeries, signalLineSeries);
+        }
+
+        // Bollinger Bands
+        function addBollingerBands(period = 20, stdDev = 2) {
+            const bbInput = {
+                values: priceData.map(d => d.close),
+                period,
+                stdDev
+            };
+            
+            const bbResults = technicalIndicators.BollingerBands.calculate(bbInput);
+            
+            const upperBandSeries = chart.addLineSeries({
+                color: 'rgba(41, 98, 255, 0.7)',
+                lineWidth: 1
+            });
+            
+            const middleBandSeries = chart.addLineSeries({
+                color: 'rgba(255, 152, 0, 0.7)',
+                lineWidth: 1
+            });
+            
+            const lowerBandSeries = chart.addLineSeries({
+                color: 'rgba(41, 98, 255, 0.7)',
+                lineWidth: 1
+            });
+            
+            const upperData = [];
+            const middleData = [];
+            const lowerData = [];
+            
+            for (let i = 0; i < bbResults.length; i++) {
+                const result = bbResults[i];
+                const time = priceData[i + period - 1].time;
+                
+                upperData.push({ time, value: result.upper });
+                middleData.push({ time, value: result.middle });
+                lowerData.push({ time, value: result.lower });
+            }
+            
+            upperBandSeries.setData(upperData);
+            middleBandSeries.setData(middleData);
+            lowerBandSeries.setData(lowerData);
+            
+            indicatorSeries.push(upperBandSeries, middleBandSeries, lowerBandSeries);
+        }
+
+        // ATR (Average True Range)
+        function addATR(period = 14) {
+            const atrInput = {
+                high: priceData.map(d => d.high),
+                low: priceData.map(d => d.low),
+                close: priceData.map(d => d.close),
+                period
+            };
+            
+            const atrResults = technicalIndicators.ATR.calculate(atrInput);
+            
+            // Create a new pane for ATR
+            const atrPane = chart.addPane();
+            const atrSeries = chart.addLineSeries({
+                pane: atrPane,
+                color: '#7E57C2',
+                lineWidth: 1
+            });
+            
+            const atrData = [];
+            for (let i = 0; i < atrResults.length; i++) {
+                atrData.push({
+                    time: priceData[i + period].time,
+                    value: atrResults[i]
+                });
+            }
+            
+            atrSeries.setData(atrData);
+            indicatorSeries.push(atrSeries);
+        }
+
+        // Stochastic Oscillator
+        function addStochastic(period = 14, signalPeriod = 3) {
+            const stochasticInput = {
+                high: priceData.map(d => d.high),
+                low: priceData.map(d => d.low),
+                close: priceData.map(d => d.close),
+                period,
+                signalPeriod
+            };
+            
+            const stochasticResults = technicalIndicators.Stochastic.calculate(stochasticInput);
+            
+            // Create a new pane for Stochastic
+            const stochasticPane = chart.addPane();
+            const kLineSeries = chart.addLineSeries({
+                pane: stochasticPane,
+                color: '#2962FF',
+                lineWidth: 1
+            });
+            
+            const dLineSeries = chart.addLineSeries({
+                pane: stochasticPane,
+                color: '#FF6D00',
+                lineWidth: 1
+            });
+            
+            // Add overbought/oversold lines
+            const overboughtLine = chart.addLineSeries({
+                pane: stochasticPane,
+                color: 'rgba(239, 83, 80, 0.5)',
+                lineWidth: 1,
+                lineStyle: 2
+            });
+            
+            const oversoldLine = chart.addLineSeries({
+                pane: stochasticPane,
+                color: 'rgba(38, 166, 154, 0.5)',
+                lineWidth: 1,
+                lineStyle: 2
+            });
+            
+            const kData = [];
+            const dData = [];
+            const obData = [];
+            const osData = [];
+            
+            for (let i = 0; i < stochasticResults.length; i++) {
+                const result = stochasticResults[i];
+                const time = priceData[i + period + signalPeriod - 2].time;
+                
+                kData.push({ time, value: result.k });
+                dData.push({ time, value: result.d });
+                obData.push({ time, value: 80 });
+                osData.push({ time, value: 20 });
+            }
+            
+            kLineSeries.setData(kData);
+            dLineSeries.setData(dData);
+            overboughtLine.setData(obData);
+            oversoldLine.setData(osData);
+            
+            indicatorSeries.push(kLineSeries, dLineSeries, overboughtLine, oversoldLine);
+        }
+
+        // Elder Ray Index
+        function addElderRay(period = 13) {
+            // Calculate EMA (Bull Power)
+            const emaData = calculateEMA(priceData, period);
+            
+            // Calculate Bull Power and Bear Power
+            const elderRayData = [];
+            for (let i = 0; i < priceData.length; i++) {
+                if (i >= period - 1) {
+                    const ema = emaData[i - (period - 1)].value;
+                    elderRayData.push({
+                        time: priceData[i].time,
+                        bullPower: priceData[i].high - ema,
+                        bearPower: priceData[i].low - ema
+                    });
+                }
+            }
+            
+            // Create a new pane for Elder Ray
+            const elderRayPane = chart.addPane();
+            const bullPowerSeries = chart.addHistogramSeries({
+                pane: elderRayPane,
+                color: '#26a69a',
+                priceFormat: {
+                    type: 'volume',
+                }
+            });
+            
+            const bearPowerSeries = chart.addHistogramSeries({
+                pane: elderRayPane,
+                color: '#ef5350',
+                priceFormat: {
+                    type: 'volume',
+                }
+            });
+            
+            const bullData = [];
+            const bearData = [];
+            
+            elderRayData.forEach(d => {
+                bullData.push({
+                    time: d.time,
+                    value: d.bullPower,
+                    color: d.bullPower >= 0 ? '#26a69a' : '#b2b5be'
+                });
+                
+                bearData.push({
+                    time: d.time,
+                    value: d.bearPower,
+                    color: d.bearPower >= 0 ? '#b2b5be' : '#ef5350'
+                });
+            });
+            
+            bullPowerSeries.setData(bullData);
+            bearPowerSeries.setData(bearData);
+            
+            indicatorSeries.push(bullPowerSeries, bearPowerSeries);
+        }
+
+        // TTM Squeeze
+        function addTTMSqueeze(bollingerPeriod = 20, bollingerStdDev = 2, keltnerPeriod = 20, keltnerMultiplier = 1.5) {
+            // Calculate Bollinger Bands
+            const bbInput = {
+                values: priceData.map(d => d.close),
+                period: bollingerPeriod,
+                stdDev: bollingerStdDev
+            };
+            const bbResults = technicalIndicators.BollingerBands.calculate(bbInput);
+            
+            // Calculate Keltner Channel
+            const keltnerResults = [];
+            for (let i = keltnerPeriod - 1; i < priceData.length; i++) {
+                const slice = priceData.slice(i - keltnerPeriod + 1, i + 1);
+                const typicalPrices = slice.map(d => (d.high + d.low + d.close) / 3);
+                const atrSlice = technicalIndicators.ATR.calculate({
+                    high: slice.map(d => d.high),
+                    low: slice.map(d => d.low),
+                    close: slice.map(d => d.close),
+                    period: keltnerPeriod
+                });
+                
+                const middle = typicalPrices.reduce((sum, val) => sum + val, 0) / keltnerPeriod;
+                const atr = atrSlice[atrSlice.length - 1];
+                
+                keltnerResults.push({
+                    upper: middle + atr * keltnerMultiplier,
+                    lower: middle - atr * keltnerMultiplier,
+                    middle
+                });
+            }
+            
+            // Calculate Squeeze status
+            const squeezeData = [];
+            for (let i = 0; i < bbResults.length; i++) {
+                const bb = bbResults[i];
+                const keltner = keltnerResults[i];
+                const time = priceData[i + bollingerPeriod - 1].time;
+                
+                // Squeeze is on when Bollinger is inside Keltner
+                const squeezeOn = bb.upper < keltner.upper && bb.lower > keltner.lower;
+                
+                squeezeData.push({
+                    time,
+                    squeezeOn,
+                    momentum: priceData[i + bollingerPeriod - 1].close - keltner.middle
+                });
+            }
+            
+            // Create a new pane for TTM Squeeze
+            const squeezePane = chart.addPane();
+            const momentumSeries = chart.addHistogramSeries({
+                pane: squeezePane,
+                color: '#26a69a',
+                priceFormat: {
+                    type: 'volume',
+                }
+            });
+            
+            const squeezeDotSeries = chart.addLineSeries({
+                pane: squeezePane,
+                color: '#FF6D00',
+                lineWidth: 0,
+                priceLineVisible: false,
+                lastValueVisible: false,
+                crosshairMarkerVisible: false
+            });
+            
+            const momentumData = [];
+            const squeezeDotData = [];
+            
+            squeezeData.forEach(d => {
+                momentumData.push({
+                    time: d.time,
+                    value: d.momentum,
+                    color: d.momentum >= 0 ? '#26a69a' : '#ef5350'
+                });
+                
+                if (d.squeezeOn) {
+                    squeezeDotData.push({
+                        time: d.time,
+                        value: 0,
+                        color: '#FF6D00',
+                        shape: 'circle',
+                        size: 6
+                    });
+                }
+            });
+            
+            momentumSeries.setData(momentumData);
+            squeezeDotSeries.setData(squeezeDotData);
+            
+            indicatorSeries.push(momentumSeries, squeezeDotSeries);
+        }
+
+        // =============================================
+        // PATTERN RECOGNITION IMPLEMENTATIONS
+        // =============================================
+
+        function detectSingleCandlePatterns() {
+            for (let i = 0; i < this.data.length; i++) {
+                const candle = this.data[i];
+                const bodySize = Math.abs(candle.open - candle.close);
+                const upperWick = candle.high - Math.max(candle.open, candle.close);
+                const lowerWick = Math.min(candle.open, candle.close) - candle.low;
+                const totalRange = candle.high - candle.low;
+                
+                // Hammer / Hanging Man
+                if (lowerWick >= 2 * bodySize && upperWick <= bodySize * 0.3) {
+                    const type = candle.close > candle.open ? 'Hammer' : 'Hanging Man';
+                    const sentiment = candle.close > candle.open ? 'bullish' : 'bearish';
+                    this.addPatternMarker(i, type, sentiment, 0.7);
+                }
+                
+                // Inverted Hammer / Shooting Star
+                if (upperWick >= 2 * bodySize && lowerWick <= bodySize * 0.3) {
+                    const type = candle.close > candle.open ? 'Inverted Hammer' : 'Shooting Star';
+                    const sentiment = candle.close > candle.open ? 'bullish' : 'bearish';
+                    this.addPatternMarker(i, type, sentiment, 0.7);
+                }
+                
+                // Doji
+                if (bodySize <= totalRange * 0.05) {
+                    let type = 'Doji';
+                    let strength = 0.5;
+                    
+                    // Dragonfly Doji
+                    if (lowerWick >= totalRange * 0.8) {
+                        type = 'Dragonfly Doji';
+                        strength = 0.7;
+                    }
+                    // Gravestone Doji
+                    else if (upperWick >= totalRange * 0.8) {
+                        type = 'Gravestone Doji';
+                        strength = 0.7;
+                    }
+                    // Long-Legged Doji
+                    else if (upperWick >= totalRange * 0.3 && lowerWick >= totalRange * 0.3) {
+                        type = 'Long-Legged Doji';
+                        strength = 0.6;
+                    }
+                    
+                    const sentiment = candle.close > candle.open ? 'bullish' : 'bearish';
+                    this.addPatternMarker(i, type, sentiment, strength);
+                }
+                
+                // Marubozu
+                if (bodySize >= totalRange * 0.9) {
+                    const type = candle.close > candle.open ? 'Bullish Marubozu' : 'Bearish Marubozu';
+                    const sentiment = candle.close > candle.open ? 'bullish' : 'bearish';
+                    this.addPatternMarker(i, type, sentiment, 0.8);
+                }
+            }
+        }
+
+        function detectTwoCandlePatterns() {
+            for (let i = 1; i < this.data.length; i++) {
+                const prev = this.data[i-1];
+                const current = this.data[i];
+                
+                const prevBody = Math.abs(prev.open - prev.close);
+                const currentBody = Math.abs(current.open - current.close);
+                const prevMid = (prev.open + prev.close) / 2;
+                const currentMid = (current.open + current.close) / 2;
+                
+                // Engulfing
+                if (currentBody > prevBody * 1.5) {
+                    const bullEngulf = prev.close < prev.open && 
+                                    current.open < prev.close && 
+                                    current.close > prev.open;
+                    
+                    const bearEngulf = prev.close > prev.open && 
+                                    current.open > prev.close && 
+                                    current.close < prev.open;
+                    
+                    if (bullEngulf) {
+                        this.addPatternMarker(i, 'Bullish Engulfing', 'bullish', 0.8);
+                    } else if (bearEngulf) {
+                        this.addPatternMarker(i, 'Bearish Engulfing', 'bearish', 0.8);
+                    }
+                }
+                
+                // Harami
+                if (currentBody < prevBody * 0.7 && 
+                    Math.min(current.open, current.close) > Math.min(prev.open, prev.close) &&
+                    Math.max(current.open, current.close) < Math.max(prev.open, prev.close)) {
+                    
+                    const sentiment = current.close > current.open ? 'bullish' : 'bearish';
+                    const type = sentiment === 'bullish' ? 'Bullish Harami' : 'Bearish Harami';
+                    this.addPatternMarker(i, type, sentiment, 0.6);
+                }
+                
+                // Piercing Line / Dark Cloud Cover
+                if (prevBody > 0 && currentBody > 0) {
+                    const prevIsBearish = prev.close < prev.open;
+                    const currentIsBullish = current.close > current.open;
+                    
+                    if (prevIsBearish && currentIsBullish && 
+                        current.open < prev.close && 
+                        current.close > prevMid) {
+                        this.addPatternMarker(i, 'Piercing Line', 'bullish', 0.7);
+                    }
+                    
+                    if (!prevIsBearish && !currentIsBullish && 
+                        current.open > prev.close && 
+                        current.close < prevMid) {
+                        this.addPatternMarker(i, 'Dark Cloud Cover', 'bearish', 0.7);
+                    }
+                }
+                
+                // Tweezer Tops/Bottoms
+                if (Math.abs(prev.high - current.high) <= prev.high * 0.002 || 
+                    Math.abs(prev.low - current.low) <= prev.low * 0.002) {
+                    
+                    if (prev.close < prev.open && current.close > current.open && 
+                        Math.abs(prev.low - current.low) <= prev.low * 0.002) {
+                        this.addPatternMarker(i, 'Tweezer Bottom', 'bullish', 0.7);
+                    }
+                    
+                    if (prev.close > prev.open && current.close < current.open && 
+                        Math.abs(prev.high - current.high) <= prev.high * 0.002) {
+                        this.addPatternMarker(i, 'Tweezer Top', 'bearish', 0.7);
+                    }
+                }
+            }
+        }
+
+        function detectThreeCandlePatterns() {
+            for (let i = 2; i < this.data.length; i++) {
+                const first = this.data[i-2];
+                const second = this.data[i-1];
+                const third = this.data[i];
+                
+                const firstBody = Math.abs(first.open - first.close);
+                const secondBody = Math.abs(second.open - second.close);
+                const thirdBody = Math.abs(third.open - third.close);
+                
+                const firstIsBullish = first.close > first.open;
+                const firstIsBearish = first.close < first.open;
+                const secondIsBullish = second.close > second.open;
+                const secondIsBearish = second.close < second.open;
+                const thirdIsBullish = third.close > third.open;
+                const thirdIsBearish = third.close < third.open;
+                
+                // Morning Star / Evening Star
+                if (firstBody > 0 && thirdBody > 0) {
+                    const firstLong = firstBody >= (first.high - first.low) * 0.7;
+                    const thirdLong = thirdBody >= (third.high - third.low) * 0.7;
+                    
+                    if (firstLong && thirdLong) {
+                        // Morning Star
+                        if (firstIsBearish && 
+                            secondBody <= (second.high - second.low) * 0.3 && 
+                            thirdIsBullish && 
+                            third.open > second.close && 
+                            third.close > firstMid) {
+                            
+                            this.addPatternMarker(i, 'Morning Star', 'bullish', 0.9);
+                        }
+                        
+                        // Evening Star
+                        if (firstIsBullish && 
+                            secondBody <= (second.high - second.low) * 0.3 && 
+                            thirdIsBearish && 
+                            third.open < second.close && 
+                            third.close < firstMid) {
+                            
+                            this.addPatternMarker(i, 'Evening Star', 'bearish', 0.9);
+                        }
+                    }
+                }
+                
+                // Three White Soldiers / Three Black Crows
+                if (firstIsBullish && secondIsBullish && thirdIsBullish &&
+                    first.close < second.open && second.close < third.open &&
+                    firstBody > 0 && secondBody > 0 && thirdBody > 0) {
+                    
+                    this.addPatternMarker(i, 'Three White Soldiers', 'bullish', 0.85);
+                }
+                
+                if (firstIsBearish && secondIsBearish && thirdIsBearish &&
+                    first.close > second.open && second.close > third.open &&
+                    firstBody > 0 && secondBody > 0 && thirdBody > 0) {
+                    
+                    this.addPatternMarker(i, 'Three Black Crows', 'bearish', 0.85);
+                }
+                
+                // Three Inside Up/Down
+                if (firstIsBearish && 
+                    secondBody <= firstBody * 0.7 && 
+                    second.open < first.close && 
+                    second.close > firstMid && 
+                    thirdIsBullish && 
+                    third.close > second.close) {
+                    
+                    this.addPatternMarker(i, 'Three Inside Up', 'bullish', 0.75);
+                }
+                
+                if (firstIsBullish && 
+                    secondBody <= firstBody * 0.7 && 
+                    second.open > first.close && 
+                    second.close < firstMid && 
+                    thirdIsBearish && 
+                    third.close < second.close) {
+                    
+                    this.addPatternMarker(i, 'Three Inside Down', 'bearish', 0.75);
+                }
+            }
+        }
+
+        function detectComplexPatterns() {
+            // Head and Shoulders / Inverse Head and Shoulders
+            for (let i = 5; i < this.data.length; i++) {
+                const leftShoulder = this.data[i-4];
+                const leftShoulderHigh = leftShoulder.high;
+                
+                const head = this.data[i-2];
+                const headHigh = head.high;
+                
+                const rightShoulder = this.data[i];
+                const rightShoulderHigh = rightShoulder.high;
+                
+                const necklineStart = this.data[i-3];
+                const necklineEnd = this.data[i-1];
+                
+                // Head and Shoulders
+                if (headHigh > leftShoulderHigh && 
+                    headHigh > rightShoulderHigh && 
+                    Math.abs(leftShoulderHigh - rightShoulderHigh) <= leftShoulderHigh * 0.01 &&
+                    necklineStart.low < necklineEnd.low) {
+                    
+                    this.addPatternMarker(i, 'Head & Shoulders', 'bearish', 0.9);
+                }
+                
+                // Inverse Head and Shoulders
+                const leftShoulderLow = leftShoulder.low;
+                const headLow = head.low;
+                const rightShoulderLow = rightShoulder.low;
+                
+                if (headLow < leftShoulderLow && 
+                    headLow < rightShoulderLow && 
+                    Math.abs(leftShoulderLow - rightShoulderLow) <= leftShoulderLow * 0.01 &&
+                    necklineStart.high > necklineEnd.high) {
+                    
+                    this.addPatternMarker(i, 'Inverse H&S', 'bullish', 0.9);
+                }
+            }
+            
+            // Double Top/Bottom
+            for (let i = 3; i < this.data.length; i++) {
+                const firstTop = this.data[i-2];
+                const secondTop = this.data[i];
+                const trough = this.data[i-1];
+                
+                // Double Top
+                if (Math.abs(firstTop.high - secondTop.high) <= firstTop.high * 0.01 &&
+                    trough.low < firstTop.high * 0.98) {
+                    
+                    this.addPatternMarker(i, 'Double Top', 'bearish', 0.85);
+                }
+                
+                // Double Bottom
+                if (Math.abs(firstTop.low - secondTop.low) <= firstTop.low * 0.01 &&
+                    trough.high > firstTop.low * 1.02) {
+                    
+                    this.addPatternMarker(i, 'Double Bottom', 'bullish', 0.85);
+                }
+            }
+            
+            // Triangles
+            for (let i = 10; i < this.data.length; i++) {
+                const highs = [];
+                const lows = [];
+                
+                for (let j = 0; j < 5; j++) {
+                    highs.push(this.data[i-j].high);
+                    lows.push(this.data[i-j].low);
+                }
+                
+                const maxHigh = Math.max(...highs);
+                const minHigh = Math.min(...highs);
+                const maxLow = Math.max(...lows);
+                const minLow = Math.min(...lows);
+                
+                // Ascending Triangle
+                if ((maxHigh - minHigh) <= maxHigh * 0.01 && 
+                    (maxLow - minLow) >= maxLow * 0.03 &&
+                    lows.sort((a,b) => a - b).every((val, idx, arr) => idx === 0 || val >= arr[idx-1])) {
+                    
+                    this.addPatternMarker(i, 'Ascending Triangle', 'bullish', 0.8);
+                }
+                
+                // Descending Triangle
+                if ((maxLow - minLow) <= maxLow * 0.01 && 
+                    (maxHigh - minHigh) >= maxHigh * 0.03 &&
+                    highs.sort((a,b) => b - a).every((val, idx, arr) => idx === 0 || val <= arr[idx-1])) {
+                    
+                    this.addPatternMarker(i, 'Descending Triangle', 'bearish', 0.8);
+                }
+                
+                // Symmetrical Triangle
+                if ((maxHigh - minHigh) >= maxHigh * 0.03 && 
+                    (maxLow - minLow) >= maxLow * 0.03 &&
+                    highs.sort((a,b) => b - a).every((val, idx, arr) => idx === 0 || val <= arr[idx-1]) &&
+                    lows.sort((a,b) => a - b).every((val, idx, arr) => idx === 0 || val >= arr[idx-1])) {
+                    
+                    this.addPatternMarker(i, 'Symmetrical Triangle', 'neutral', 0.7);
+                }
+            }
+            
+            // Flags and Pennants
+            for (let i = 8; i < this.data.length; i++) {
+                const poleStart = this.data[i-7];
+                const poleEnd = this.data[i-5];
+                const flagStart = this.data[i-4];
+                const flagEnd = this.data[i];
+                
+                // Bull Flag
+                if (poleStart.close < poleStart.open && 
+                    poleEnd.close > poleEnd.open && 
+                    poleEnd.close > poleStart.close * 1.03 &&
+                    flagStart.high < flagEnd.high &&
+                    flagStart.low > flagEnd.low) {
+                    
+                    this.addPatternMarker(i, 'Bull Flag', 'bullish', 0.85);
+                }
+                
+                // Bear Flag
+                if (poleStart.close > poleStart.open && 
+                    poleEnd.close < poleEnd.open && 
+                    poleEnd.close < poleStart.close * 0.97 &&
+                    flagStart.high > flagEnd.high &&
+                    flagStart.low < flagEnd.low) {
+                    
+                    this.addPatternMarker(i, 'Bear Flag', 'bearish', 0.85);
+                }
+                
+                // Pennant (similar but with converging trendlines)
+                if (Math.abs(poleStart.close - poleEnd.close) >= poleStart.close * 0.05 &&
+                    flagStart.high > flagEnd.high &&
+                    flagStart.low < flagEnd.low) {
+                    
+                    const sentiment = poleEnd.close > poleStart.close ? 'bullish' : 'bearish';
+                    this.addPatternMarker(i, 'Pennant', sentiment, 0.8);
+                }
+            }
+        }
+
+        function addPatternMarker(candleIndex, patternName, sentiment, strength) {
+            const candle = this.data[candleIndex];
+            const marker = document.createElement('div');
+            marker.className = 'pattern-marker';
+            marker.style.backgroundColor = sentiment === 'bullish' ? '#26a69a' : 
+                                        sentiment === 'bearish' ? '#ef5350' : '#9E9E9E';
+            marker.style.border = '2px solid ' + (sentiment === 'bullish' ? '#1b5e20' : 
+                                                sentiment === 'bearish' ? '#b71c1c' : '#424242');
+            
+            // Position the marker at the high or low depending on pattern type
+            const isTopPattern = patternName.includes('Top') || patternName.includes('Shooting') || 
+                                patternName.includes('Bearish') || patternName === 'Head & Shoulders';
+            const isBottomPattern = patternName.includes('Bottom') || patternName.includes('Hammer') || 
+                                patternName.includes('Bullish') || patternName === 'Inverse H&S';
+            
+            const yPos = isTopPattern ? candle.high : isBottomPattern ? candle.low : (candle.high + candle.low) / 2;
+            
+            // Convert to pixel coordinates
+            const priceScale = chart.priceScale();
+            const timeScale = chart.timeScale();
+            
+            const coordinate = chart.timeToCoordinate(candle.time);
+            const priceCoordinate = priceScale.priceToCoordinate(yPos);
+            
+            if (coordinate === null || priceCoordinate === null) return;
+            
+            const container = document.getElementById('pattern-markers-container');
+            marker.style.left = `${coordinate}px`;
+            marker.style.top = `${priceCoordinate}px`;
+            container.appendChild(marker);
+            
+            // Create info window
+            const infoWindow = document.createElement('div');
+            infoWindow.className = 'pattern-info-window';
+            infoWindow.style.left = `${coordinate + 10}px`;
+            infoWindow.style.top = `${priceCoordinate - 50}px`;
+            
+            infoWindow.innerHTML = `
+                <h4>${patternName}</h4>
+                <p>${new Date(candle.time * 1000).toLocaleString()}</p>
+                <p class="strength ${sentiment}">${Math.round(strength * 100)}% strength</p>
+            `;
+            
+            container.appendChild(infoWindow);
+            
+            // Show/hide on hover
+            marker.addEventListener('mouseenter', () => {
+                infoWindow.style.display = 'block';
+            });
+            
+            marker.addEventListener('mouseleave', () => {
+                infoWindow.style.display = 'none';
+            });
+            
+            this.patternMarkers.push(marker);
+            this.infoWindows.push(infoWindow);
+        }
+
+
+
+        function detectHeadAndShoulders() {
+            // This is a simplified detection algorithm
+            // In a real application, you'd use more sophisticated pattern recognition
+            
+            const patterns = [];
+            const swingPoints = findSwingPoints(priceData);
+            
+            for (let i = 4; i < swingPoints.length; i++) {
+                const [leftShoulder, head, rightShoulder] = swingPoints.slice(i - 3, i);
+                
+                // Basic Head and Shoulders pattern conditions
+                if (leftShoulder.type === 'high' && 
+                    head.type === 'high' && 
+                    rightShoulder.type === 'high' &&
+                    head.price > leftShoulder.price &&
+                    head.price > rightShoulder.price &&
+                    Math.abs(leftShoulder.price - rightShoulder.price) / leftShoulder.price < 0.02) {
+                    
+                    patterns.push({
+                        type: 'head-shoulders',
+                        points: [leftShoulder, head, rightShoulder],
+                        neckline: {
+                            start: { time: leftShoulder.time, price: leftShoulder.price },
+                            end: { time: rightShoulder.time, price: rightShoulder.price }
+                        }
+                    });
+                }
+            }
+            
+            return patterns;
+        }
+
+        function detectDoubleTopBottom() {
+            const patterns = [];
+            const swingPoints = findSwingPoints(priceData);
+            
+            for (let i = 3; i < swingPoints.length; i++) {
+                const [firstTop, bottom, secondTop] = swingPoints.slice(i - 3, i);
+                
+                // Double Top pattern
+                if (firstTop.type === 'high' && 
+                    bottom.type === 'low' && 
+                    secondTop.type === 'high' &&
+                    Math.abs(firstTop.price - secondTop.price) / firstTop.price < 0.02 &&
+                    secondTop.time > firstTop.time) {
+                    
+                    patterns.push({
+                        type: 'double-top',
+                        points: [firstTop, bottom, secondTop],
+                        neckline: {
+                            start: { time: bottom.time, price: bottom.price },
+                            end: { time: secondTop.time, price: bottom.price }
+                        }
+                    });
+                }
+                
+                // Double Bottom pattern (similar logic inverted)
+                const [firstBottom, top, secondBottom] = swingPoints.slice(i - 3, i);
+                if (firstBottom.type === 'low' && 
+                    top.type === 'high' && 
+                    secondBottom.type === 'low' &&
+                    Math.abs(firstBottom.price - secondBottom.price) / firstBottom.price < 0.02 &&
+                    secondBottom.time > firstBottom.time) {
+                    
+                    patterns.push({
+                        type: 'double-bottom',
+                        points: [firstBottom, top, secondBottom],
+                        neckline: {
+                            start: { time: top.time, price: top.price },
+                            end: { time: secondBottom.time, price: top.price }
+                        }
+                    });
+                }
+            }
+            
+            return patterns;
+        }
+
+        function detectTriangles() {
+            const patterns = [];
+            const swingPoints = findSwingPoints(priceData);
+            
+            // We need at least 4 swing points (2 highs and 2 lows) to detect a triangle
+            for (let i = 5; i < swingPoints.length; i++) {
+                const recentPoints = swingPoints.slice(i - 5, i);
+                const highs = recentPoints.filter(p => p.type === 'high');
+                const lows = recentPoints.filter(p => p.type === 'low');
+                
+                if (highs.length >= 2 && lows.length >= 2) {
+                    // Check for descending/ascending trendlines
+                    const highTrend = (highs[1].price - highs[0].price) / (highs[1].time - highs[0].time);
+                    const lowTrend = (lows[1].price - lows[0].price) / (lows[1].time - lows[0].time);
+                    
+                    // Symmetrical triangle (both trendlines converging)
+                    if (highTrend < 0 && lowTrend > 0) {
+                        patterns.push({
+                            type: 'symmetrical-triangle',
+                            upperLine: {
+                                start: highs[0],
+                                end: highs[1]
+                            },
+                            lowerLine: {
+                                start: lows[0],
+                                end: lows[1]
+                            }
+                        });
+                    }
+                    // Ascending triangle (flat top, rising bottom)
+                    else if (Math.abs(highs[1].price - highs[0].price) / highs[0].price < 0.01 && lowTrend > 0) {
+                        patterns.push({
+                            type: 'ascending-triangle',
+                            upperLine: {
+                                start: highs[0],
+                                end: { time: highs[1].time, price: highs[0].price }
+                            },
+                            lowerLine: {
+                                start: lows[0],
+                                end: lows[1]
+                            }
+                        });
+                    }
+                    // Descending triangle (flat bottom, falling top)
+                    else if (Math.abs(lows[1].price - lows[0].price) / lows[0].price < 0.01 && highTrend < 0) {
+                        patterns.push({
+                            type: 'descending-triangle',
+                            upperLine: {
+                                start: highs[0],
+                                end: highs[1]
+                            },
+                            lowerLine: {
+                                start: lows[0],
+                                end: { time: lows[1].time, price: lows[0].price }
+                            }
+                        });
+                    }
+                }
+            }
+            
+            return patterns;
+        }
+
+        function detectWedges() {
+            const patterns = [];
+            const swingPoints = findSwingPoints(priceData);
+            
+            // Similar to triangles but both trendlines moving in the same direction
+            for (let i = 5; i < swingPoints.length; i++) {
+                const recentPoints = swingPoints.slice(i - 5, i);
+                const highs = recentPoints.filter(p => p.type === 'high');
+                const lows = recentPoints.filter(p => p.type === 'low');
+                
+                if (highs.length >= 2 && lows.length >= 2) {
+                    const highTrend = (highs[1].price - highs[0].price) / (highs[1].time - highs[0].time);
+                    const lowTrend = (lows[1].price - lows[0].price) / (lows[1].time - lows[0].time);
+                    
+                    // Rising wedge (both trendlines rising but converging)
+                    if (highTrend > 0 && lowTrend > 0 && highTrend < lowTrend) {
+                        patterns.push({
+                            type: 'rising-wedge',
+                            upperLine: {
+                                start: highs[0],
+                                end: highs[1]
+                            },
+                            lowerLine: {
+                                start: lows[0],
+                                end: lows[1]
+                            }
+                        });
+                    }
+                    // Falling wedge (both trendlines falling but converging)
+                    else if (highTrend < 0 && lowTrend < 0 && highTrend < lowTrend) {
+                        patterns.push({
+                            type: 'falling-wedge',
+                            upperLine: {
+                                start: highs[0],
+                                end: highs[1]
+                            },
+                            lowerLine: {
+                                start: lows[0],
+                                end: lows[1]
+                            }
+                        });
+                    }
+                }
+            }
+            
+            return patterns;
+        }
+
+        function detectFlagsAndPennants() {
+            const patterns = [];
+            const swingPoints = findSwingPoints(priceData);
+            
+            // Flags are small rectangles after a strong move
+            // Pennants are small triangles after a strong move
+            for (let i = 6; i < swingPoints.length; i++) {
+                const recentPoints = swingPoints.slice(i - 6, i);
+                const strongMove = checkForStrongMove(recentPoints[0], recentPoints[1]);
+                
+                if (strongMove) {
+                    const consolidationPoints = recentPoints.slice(2);
+                    const highs = consolidationPoints.filter(p => p.type === 'high');
+                    const lows = consolidationPoints.filter(p => p.type === 'low');
+                    
+                    if (highs.length >= 2 && lows.length >= 2) {
+                        const highTrend = (highs[1].price - highs[0].price) / (highs[1].time - highs[0].time);
+                        const lowTrend = (lows[1].price - lows[0].price) / (lows[1].time - lows[0].time);
+                        
+                        // Flag (parallel channel)
+                        if (Math.abs(highTrend - lowTrend) < 0.0001) {
+                            patterns.push({
+                                type: strongMove.direction === 'up' ? 'bull-flag' : 'bear-flag',
+                                pole: {
+                                    start: recentPoints[0],
+                                    end: recentPoints[1]
+                                },
+                                upperLine: {
+                                    start: highs[0],
+                                    end: highs[1]
+                                },
+                                lowerLine: {
+                                    start: lows[0],
+                                    end: lows[1]
+                                }
+                            });
+                        }
+                        // Pennant (small symmetrical triangle)
+                        else if (highTrend < 0 && lowTrend > 0) {
+                            patterns.push({
+                                type: strongMove.direction === 'up' ? 'bull-pennant' : 'bear-pennant',
+                                pole: {
+                                    start: recentPoints[0],
+                                    end: recentPoints[1]
+                                },
+                                upperLine: {
+                                    start: highs[0],
+                                    end: highs[1]
+                                },
+                                lowerLine: {
+                                    start: lows[0],
+                                    end: lows[1]
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+            
+            return patterns;
+        }
+
+        function detectElliottWaves() {
+            const patterns = [];
+            const swingPoints = findSwingPoints(priceData);
+            
+            // Simplified Elliott Wave detection
+            // In reality, Elliott Wave analysis is highly subjective and complex
+            for (let i = 8; i < swingPoints.length; i++) {
+                const recentPoints = swingPoints.slice(i - 8, i);
+                const waves = [];
+                
+                // Try to identify 5-wave impulse pattern
+                let validImpulse = true;
+                for (let j = 0; j < 5; j++) {
+                    if (j % 2 === 0) { // Impulse waves (1, 3, 5)
+                        if (recentPoints[j].type !== (j === 2 ? 'high' : 'low')) {
+                            validImpulse = false;
+                            break;
+                        }
+                    } else { // Corrective waves (2, 4)
+                        if (recentPoints[j].type !== (j === 1 ? 'high' : 'low')) {
+                            validImpulse = false;
+                            break;
+                        }
+                    }
+                }
+                
+                if (validImpulse) {
+                    // Check Fibonacci relationships between waves
+                    const wave1 = Math.abs(recentPoints[1].price - recentPoints[0].price);
+                    const wave2 = Math.abs(recentPoints[2].price - recentPoints[1].price);
+                    const wave3 = Math.abs(recentPoints[3].price - recentPoints[2].price);
+                    const wave4 = Math.abs(recentPoints[4].price - recentPoints[3].price);
+                    
+                    // Typical Fibonacci relationships
+                    if (wave3 > wave1 && wave3 > wave5 &&
+                        wave2 <= wave1 * 0.618 && 
+                        wave4 <= wave3 * 0.382) {
+                        
+                        patterns.push({
+                            type: 'elliott-impulse',
+                            waves: recentPoints.slice(0, 5),
+                            direction: recentPoints[0].type === 'low' ? 'up' : 'down'
+                        });
+                    }
+                }
+            }
+            
+            return patterns;
+        }
+
+        // Helper function to find swing points (highs and lows)
+        function findSwingPoints(data, lookback = 3) {
+            const swingPoints = [];
+            
+            for (let i = lookback; i < data.length - lookback; i++) {
+                const window = data.slice(i - lookback, i + lookback + 1);
+                const current = data[i];
+                
+                // Check for high
+                let isHigh = true;
+                for (let j = 0; j < window.length; j++) {
+                    if (window[j].high > current.high) {
+                        isHigh = false;
+                        break;
+                    }
+                }
+                if (isHigh) {
+                    swingPoints.push({
+                        type: 'high',
+                        time: current.time,
+                        price: current.high
+                    });
+                    continue;
+                }
+                
+                // Check for low
+                let isLow = true;
+                for (let j = 0; j < window.length; j++) {
+                    if (window[j].low < current.low) {
+                        isLow = false;
+                        break;
+                    }
+                }
+                if (isLow) {
+                    swingPoints.push({
+                        type: 'low',
+                        time: current.time,
+                        price: current.low
+                    });
+                }
+            }
+            
+            return swingPoints;
+        }
+
+        // Helper function to check for strong moves
+        function checkForStrongMove(point1, point2) {
+            const priceChange = Math.abs(point2.price - point1.price);
+            const percentChange = priceChange / point1.price;
+            const timeDiff = point2.time - point1.time;
+            
+            if (percentChange > 0.05 && timeDiff < 60 * 60 * 24 * 5) { // >5% move in <5 days
+                return {
+                    direction: point2.price > point1.price ? 'up' : 'down',
+                    magnitude: percentChange
+                };
+            }
+            return null;
+        }
+
+        // Function to visualize patterns on the chart
+        function visualizePatterns(patterns) {
+            // First clear any existing pattern markers
+            clearPatternMarkers();
+            
+            patterns.forEach(pattern => {
+                switch (pattern.type) {
+                    case 'head-shoulders':
+                        visualizeHeadAndShoulders(pattern);
+                        break;
+                    case 'double-top':
+                    case 'double-bottom':
+                        visualizeDoubleTopBottom(pattern);
+                        break;
+                    case 'symmetrical-triangle':
+                    case 'ascending-triangle':
+                    case 'descending-triangle':
+                        visualizeTriangle(pattern);
+                        break;
+                    case 'rising-wedge':
+                    case 'falling-wedge':
+                        visualizeWedge(pattern);
+                        break;
+                    case 'bull-flag':
+                    case 'bear-flag':
+                    case 'bull-pennant':
+                    case 'bear-pennant':
+                        visualizeFlagPennant(pattern);
+                        break;
+                    case 'elliott-impulse':
+                        visualizeElliottWave(pattern);
+                        break;
+                }
+            });
+        }
+
+        // Visualization functions for each pattern type
+        function visualizeHeadAndShoulders(pattern) {
+            const [leftShoulder, head, rightShoulder] = pattern.points;
+            
+            // Create a polygon for the pattern
+            const polygon = document.createElement('div');
+            polygon.className = 'pattern-marker';
+            
+            // Position the polygon (simplified)
+            const startX = mainTimeScale.timeToCoordinate(leftShoulder.time);
+            const headX = mainTimeScale.timeToCoordinate(head.time);
+            const endX = mainTimeScale.timeToCoordinate(rightShoulder.time);
+            const topY = chart.priceScale().priceToCoordinate(head.price);
+            const shoulderY = chart.priceScale().priceToCoordinate(leftShoulder.price);
+            
+            polygon.style.left = `${startX}px`;
+            polygon.style.width = `${endX - startX}px`;
+            polygon.style.top = `${topY}px`;
+            polygon.style.height = `${shoulderY - topY}px`;
+            polygon.style.borderRadius = '50% 50% 0 0';
+            
+            chartContainer.appendChild(polygon);
+            
+            // Add label
+            const label = document.createElement('div');
+            label.className = 'pattern-label';
+            label.textContent = 'Head & Shoulders';
+            label.style.left = `${headX}px`;
+            label.style.top = `${topY - 20}px`;
+            
+            chartContainer.appendChild(label);
+            
+            // Store references for later removal
+            pattern.markers = [polygon, label];
+        }
+
+        // Similar visualization functions would be implemented for other patterns
+        // (double top/bottom, triangles, wedges, flags, Elliott Waves, etc.)
+        //
+        //
+        //
+        //
+
+        function clearPatternMarkers() {
+            const markers = document.querySelectorAll('.pattern-marker, .pattern-label');
+            markers.forEach(marker => marker.remove());
+        }
+
+
+
+
+        // Add pattern detection button
+        const patternDetectionBtn = document.createElement('button');
+        patternDetectionBtn.id = 'pattern-detection-btn';
+        patternDetectionBtn.textContent = 'Detect Patterns';
+        document.getElementById('indicator-toolbar').appendChild(patternDetectionBtn);
+        
+        patternDetectionBtn.addEventListener('click', () => {
+            detectAllPatterns();
+        });
+        
+        // Auto-detect patterns on load
+        detectAllPatterns();
+        
+        // Update pattern markers when chart is scrolled/zoomed
+        chart.subscribeVisibleLogicalRangeChange(() => {
+            detectAllPatterns();
+        });
+
+
+        // =============================================
+        // EVENT LISTENERS FOR PATTERN RECOGNITION
+        // =============================================
+
+        document.getElementById('head-shoulders-btn').addEventListener('click', () => {
+            const patterns = detectHeadAndShoulders();
+            visualizePatterns(patterns);
+        });
+
+        document.getElementById('double-top-btn').addEventListener('click', () => {
+            const patterns = detectDoubleTopBottom();
+            visualizePatterns(patterns);
+        });
+
+        document.getElementById('triangle-btn').addEventListener('click', () => {
+            const patterns = detectTriangles();
+            visualizePatterns(patterns);
+        });
+
+        document.getElementById('wedge-btn').addEventListener('click', () => {
+            const patterns = detectWedges();
+            visualizePatterns(patterns);
+        });
+
+        document.getElementById('flags-btn').addEventListener('click', () => {
+            const patterns = detectFlagsAndPennants();
+            visualizePatterns(patterns);
+        });
+
+        document.getElementById('elliott-wave-btn').addEventListener('click', () => {
+            const patterns = detectElliottWaves();
+            visualizePatterns(patterns);
+        });
+
+        // =============================================
+        // MODAL AND SETTINGS IMPLEMENTATION
+        // =============================================
+
+        // Previous modal implementations remain
+        document.getElementById('cursor-btn').addEventListener('click', () => setActiveTool(null));
+        document.getElementById('line-btn').addEventListener('click', () => setActiveTool('line'));
+        document.getElementById('ray-btn').addEventListener('click', () => setActiveTool('ray'));
+        document.getElementById('hline-btn').addEventListener('click', () => setActiveTool('horizontal'));
+        document.getElementById('vline-btn').addEventListener('click', () => setActiveTool('vertical'));
+        document.getElementById('trendline-btn').addEventListener('click', () => setActiveTool('trendline'));
+        document.getElementById('fib-retracement-btn').addEventListener('click', () => setActiveTool('fib-retracement'));
+        document.getElementById('rectangle-btn').addEventListener('click', () => setActiveTool('rectangle'));
+        document.getElementById('ellipse-btn').addEventListener('click', () => setActiveTool('ellipse'));
+        document.getElementById('arrow-btn').addEventListener('click', () => setActiveTool('arrow'));
+        document.getElementById('gann-btn').addEventListener('click', () => setActiveTool('gann-fan'));
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            drawings.forEach(drawing => {
+                if (drawing.line) chart.removeSeries(drawing.line);
+                if (drawing.rect) chart.removeShape(drawing.rect);
+                if (drawing.ellipse) chart.removeShape(drawing.ellipse);
+                if (drawing.fibRetracement) drawing.fibRetracement.forEach(s => chart.removeSeries(s));
+                if (drawing.gannFan) drawing.gannFan.forEach(s => chart.removeSeries(s));
+            });
+            drawings = [];
+        });
+
+        // Chart event subscriptions
+        chart.subscribeCrosshairMove(handleCrosshairMove);
+        chart.subscribeClick(handleClick);
+
+        // Add indicator settings forms
+        function showIndicatorSettings(indicator) {
+            indicatorSettingsForm.innerHTML = '';
+            
+            switch (indicator) {
+                case 'sma':
+                    indicatorSettingsForm.innerHTML = `
+                        <label for="sma-period">Period:</label>
+                        <input type="number" id="sma-period" value="20" min="1" max="200">
+                    `;
+                    break;
+                case 'ema':
+                    indicatorSettingsForm.innerHTML = `
+                        <label for="ema-period">Period:</label>
+                        <input type="number" id="ema-period" value="20" min="1" max="200">
+                    `;
+                    break;
+                case 'rsi':
+                    indicatorSettingsForm.innerHTML = `
+                        <label for="rsi-period">Period:</label>
+                        <input type="number" id="rsi-period" value="14" min="1" max="200">
+                    `;
+                    break;
+                case 'macd':
+                    indicatorSettingsForm.innerHTML = `
+                        <label for="macd-fast">Fast Period:</label>
+                        <input type="number" id="macd-fast" value="12" min="1" max="50">
+                        <label for="macd-slow">Slow Period:</label>
+                        <input type="number" id="macd-slow" value="26" min="1" max="50">
+                        <label for="macd-signal">Signal Period:</label>
+                        <input type="number" id="macd-signal" value="9" min="1" max="50">
+                    `;
+                    break;
+                case 'bollinger':
+                    indicatorSettingsForm.innerHTML = `
+                        <label for="bb-period">Period:</label>
+                        <input type="number" id="bb-period" value="20" min="1" max="50">
+                        <label for="bb-stddev">Standard Deviations:</label>
+                        <input type="number" id="bb-stddev" value="2" min="0.1" max="5" step="0.1">
+                    `;
+                    break;
+                case 'atr':
+                    indicatorSettingsForm.innerHTML = `
+                        <label for="atr-period">Period:</label>
+                        <input type="number" id="atr-period" value="14" min="1" max="50">
+                    `;
+                    break;
+                case 'stochastic':
+                    indicatorSettingsForm.innerHTML = `
+                        <label for="stoch-k">%K Period:</label>
+                        <input type="number" id="stoch-k" value="14" min="1" max="50">
+                        <label for="stoch-d">%D Period:</label>
+                        <input type="number" id="stoch-d" value="3" min="1" max="50">
+                    `;
+                    break;
+                case 'elder-ray':
+                    indicatorSettingsForm.innerHTML = `
+                        <label for="er-period">EMA Period:</label>
+                        <input type="number" id="er-period" value="13" min="1" max="50">
+                    `;
+                    break;
+                case 'ttm-squeeze':
+                    indicatorSettingsForm.innerHTML = `
+                        <label for="sq-bb-period">BB Period:</label>
+                        <input type="number" id="sq-bb-period" value="20" min="1" max="50">
+                        <label for="sq-bb-stddev">BB Std Dev:</label>
+                        <input type="number" id="sq-bb-stddev" value="2" min="0.1" max="5" step="0.1">
+                        <label for="sq-kc-period">KC Period:</label>
+                        <input type="number" id="sq-kc-period" value="20" min="1" max="50">
+                        <label for="sq-kc-mult">KC Multiplier:</label>
+                        <input type="number" id="sq-kc-mult" value="1.5" min="0.1" max="5" step="0.1">
+                    `;
+                    break;
+            }
+            
+            document.getElementById('indicator-modal-title').textContent = 
+                `${indicator.toUpperCase()} Settings`;
+            indicatorModal.style.display = 'block';
+        }
+
+        // Update indicator buttons to show settings
+        document.getElementById('sma-btn').addEventListener('click', () => {
+            showIndicatorSettings('sma');
+        });
+
+        document.getElementById('ema-btn').addEventListener('click', () => {
+            showIndicatorSettings('ema');
+        });
+
+        document.getElementById('rsi-btn').addEventListener('click', () => {
+            showIndicatorSettings('rsi');
+        });
+
+        document.getElementById('macd-btn').addEventListener('click', () => {
+            showIndicatorSettings('macd');
+        });
+
+        document.getElementById('bollinger-btn').addEventListener('click', () => {
+            showIndicatorSettings('bollinger');
+        });
+
+        document.getElementById('atr-btn').addEventListener('click', () => {
+            showIndicatorSettings('atr');
+        });
+
+        document.getElementById('stochastic-btn').addEventListener('click', () => {
+            showIndicatorSettings('stochastic');
+        });
+
+        document.getElementById('elder-ray-btn').addEventListener('click', () => {
+            showIndicatorSettings('elder-ray');
+        });
+
+        document.getElementById('ttm-squeeze-btn').addEventListener('click', () => {
+            showIndicatorSettings('ttm-squeeze');
+        });
+
+        // Apply button for indicator settings
+        document.getElementById('apply-indicator-btn').addEventListener('click', () => {
+            const title = document.getElementById('indicator-modal-title').textContent;
+            const indicator = title.split(' ')[0].toLowerCase();
+            
+            switch (indicator) {
+                case 'sma':
+                    const smaPeriod = parseInt(document.getElementById('sma-period').value);
+                    addSMA(smaPeriod);
+                    break;
+                case 'ema':
+                    const emaPeriod = parseInt(document.getElementById('ema-period').value);
+                    addEMA(emaPeriod);
+                    break;
+                case 'rsi':
+                    const rsiPeriod = parseInt(document.getElementById('rsi-period').value);
+                    addRSI(rsiPeriod);
+                    break;
+                case 'macd':
+                    const fastPeriod = parseInt(document.getElementById('macd-fast').value);
+                    const slowPeriod = parseInt(document.getElementById('macd-slow').value);
+                    const signalPeriod = parseInt(document.getElementById('macd-signal').value);
+                    addMACD(fastPeriod, slowPeriod, signalPeriod);
+                    break;
+                case 'bollinger':
+                    const bbPeriod = parseInt(document.getElementById('bb-period').value);
+                    const bbStdDev = parseFloat(document.getElementById('bb-stddev').value);
+                    addBollingerBands(bbPeriod, bbStdDev);
+                    break;
+                case 'atr':
+                    const atrPeriod = parseInt(document.getElementById('atr-period').value);
+                    addATR(atrPeriod);
+                    break;
+                case 'stochastic':
+                    const kPeriod = parseInt(document.getElementById('stoch-k').value);
+                    const dPeriod = parseInt(document.getElementById('stoch-d').value);
+                    addStochastic(kPeriod, dPeriod);
+                    break;
+                case 'elder-ray':
+                    const erPeriod = parseInt(document.getElementById('er-period').value);
+                    addElderRay(erPeriod);
+                    break;
+                case 'ttm-squeeze':
+                    const bbPeriodSq = parseInt(document.getElementById('sq-bb-period').value);
+                    const bbStdDevSq = parseFloat(document.getElementById('sq-bb-stddev').value);
+                    const kcPeriod = parseInt(document.getElementById('sq-kc-period').value);
+                    const kcMult = parseFloat(document.getElementById('sq-kc-mult').value);
+                    addTTMSqueeze(bbPeriodSq, bbStdDevSq, kcPeriod, kcMult);
+                    break;
+            }
+            
+            indicatorModal.style.display = 'none';
+        });
+
+        // Cancel button for indicator modal
+        document.getElementById('cancel-indicator-btn').addEventListener('click', () => {
+            indicatorModal.style.display = 'none';
+        });
+
+        // Cancel button for drawings modal
+        document.getElementById('cancel-drawings-btn').addEventListener('click', () => {
+            drawingsModal.style.display = 'none';
+        });
+
+        // Save button for drawings modal
+        document.getElementById('save-drawings-btn').addEventListener('click', () => {
+            document.getElementById('drawings-modal-title').textContent = 'Save Drawings';
+            document.getElementById('drawings-name').value = '';
+            document.getElementById('drawings-description').value = '';
+            document.getElementById('delete-drawings-btn').style.display = 'none';
+            document.getElementById('confirm-drawings-btn').textContent = 'Save';
+            drawingsModal.style.display = 'block';
+            updateSavedDrawingsList();
+        });
+
+        // Load button for drawings modal
+        document.getElementById('load-drawings-btn').addEventListener('click', () => {
+            document.getElementById('drawings-modal-title').textContent = 'Load Drawings';
+            document.getElementById('drawings-name').value = '';
+            document.getElementById('drawings-description').value = '';
+            document.getElementById('delete-drawings-btn').style.display = 'none';
+            document.getElementById('confirm-drawings-btn').textContent = 'Load';
+            drawingsModal.style.display = 'block';
+            updateSavedDrawingsList();
+        });
+
+        // Confirm button for drawings modal
+        document.getElementById('confirm-drawings-btn').addEventListener('click', () => {
+            const action = document.getElementById('confirm-drawings-btn').textContent.toLowerCase();
+            const name = document.getElementById('drawings-name').value;
+            
+            if (action === 'save') {
+                const description = document.getElementById('drawings-description').value;
+                saveDrawings(name, description);
+            } else if (action === 'load') {
+                loadDrawings(name);
+            }
+            
+            drawingsModal.style.display = 'none';
+        });
+
+        // Delete button for drawings modal
+        document.getElementById('delete-drawings-btn').addEventListener('click', () => {
+            const name = document.getElementById('drawings-name').value;
+            if (confirm(`Delete drawing set "${name}"?`)) {
+                deleteDrawings(name);
+                document.getElementById('drawings-name').value = '';
+                document.getElementById('drawings-description').value = '';
+                document.getElementById('delete-drawings-btn').style.display = 'none';
+            }
+        });
+
+        // Close modals when clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target === indicatorModal) {
+                indicatorModal.style.display = 'none';
+            }
+            if (event.target === drawingsModal) {
+                drawingsModal.style.display = 'none';
+            }
+        });
+
+        // Initialize saved drawings list
+        updateSavedDrawingsList();
+    </script>
+</body>
+</html>

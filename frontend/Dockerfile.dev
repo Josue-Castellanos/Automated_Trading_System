@@ -1,0 +1,15 @@
+FROM node:23-alpine
+
+LABEL version="1.0"
+
+LABEL description="React Frontend for the Algo Chart API"
+
+WORKDIR /app
+
+COPY ./package*.json ./
+
+RUN npm install
+
+COPY . .
+
+CMD [ "npm", "run", "start" ]
