@@ -1,0 +1,56 @@
+import pytz
+from apscheduler.schedulers.background import BackgroundScheduler
+from backend.tokens import Tokens
+from backend.client import Client
+from backend.utils import market_is_open
+
+import logging
+trading_logger = logging.getLogger("trading")
+
+
+class Scheduler:
+    def __init__(self):
+        self.scheduler = BackgroundScheduler(logger=trading_logger)
+        self.client = None
+
+        tz = pytz.timezone("America/Los_Angeles")
+
+        # Schedule the start and stop of the client with the specified timezone
+        self.scheduler.add_job(self.start, "cron", hour=6, minute=30, timezone=tz)
+        self.scheduler.add_job(self.stop, "cron", hour=13, minute=00, timezone=tz)
+
+        # Start the scheduler
+        self.scheduler.start()
+        
+        # Check if market is already open when script starts
+        if market_is_open():
+            self.start()
+
+
+    def start(self):
+        if self.client is None:
+            trading_logger.info("Client started")
+            frequency = 5  # <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
+            self.client = Client(frequency)
+
+    def stop(self):
+        if self.client:
+            # self.client.sell_position()
+            self.client.save_settings()
+            if self.client.thread:
+                self.client.thread.join()
+                trading_logger.info("Client thread stopped")
+            self.client = None
+            trading_logger.info("Client stopped")
+
+
+if __name__ == "__main__":
+    tokens = Tokens()
+    scheduler = Scheduler()
+
+    try:
+        while True:
+            pass  # Keeps the script alive
+    except KeyboardInterrupt:
+        trading_logger.error("Scheduler stopped manually.")
+        
