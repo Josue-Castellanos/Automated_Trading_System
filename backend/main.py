@@ -3,14 +3,14 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from backend.tokens import Tokens
 from backend.client import Client
 from backend.utils import market_is_open
+import backend.log
 
 import logging
-trading_logger = logging.getLogger("trading")
-
+logger = logging.getLogger("trading")
 
 class Scheduler:
     def __init__(self):
-        self.scheduler = BackgroundScheduler(logger=trading_logger)
+        self.scheduler = BackgroundScheduler()
         self.client = None
 
         tz = pytz.timezone("America/Los_Angeles")
@@ -29,7 +29,7 @@ class Scheduler:
 
     def start(self):
         if self.client is None:
-            trading_logger.info("Client started")
+            logger.info("Client started")
             frequency = 5  # <--------- SUPER IMPORTNAT!! FREQUENCY OF THE SYSTEM IN MINUTES --------->
             self.client = Client(frequency)
 
@@ -39,12 +39,13 @@ class Scheduler:
             self.client.save_settings()
             if self.client.thread:
                 self.client.thread.join()
-                trading_logger.info("Client thread stopped")
+                logger.info("Client thread stopped")
             self.client = None
-            trading_logger.info("Client stopped")
+            logger.info("Client stopped")
 
 
 if __name__ == "__main__":
+    logger.info("Scheduler script started")
     tokens = Tokens()
     scheduler = Scheduler()
 
@@ -52,5 +53,5 @@ if __name__ == "__main__":
         while True:
             pass  # Keeps the script alive
     except KeyboardInterrupt:
-        trading_logger.error("Scheduler stopped manually.")
+        logger.error("Scheduler stopped manually.")
         

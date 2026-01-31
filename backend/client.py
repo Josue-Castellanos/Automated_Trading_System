@@ -228,7 +228,7 @@ class Client:
         if self.signal_type not in ["CALL", "PUT"]:
             logger.info(f"STEP 4: NO VALID SIGNAL - Signal: {self.signal}  Type: {self.signal_type} --> Active: {self.active_signal}  Type: {self.active_signal_type}")
             return
-        # SKIP if signal strength not met
+        # SKIP if 1hr, 2hr, 4hr signal received is not confirmed with lower timeframe signal as well.
   
 
         #FUTURE VERSION
