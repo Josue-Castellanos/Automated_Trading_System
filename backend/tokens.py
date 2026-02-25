@@ -27,12 +27,8 @@ class Tokens:
 
         self._check_schwab_keys()
         self._schwab_token_manager("init")
-        self._check_schwab_tokens()
-        self.update_tokens_automatic()
+        self.check_schwab_tokens()
 
-    def reload_settings(self):
-        """Reload the settings dynamically."""
-        self.settings = Settings.reload()
 
     # ***********************************************************************
     # ************************** SCHWAB TOKENS ******************************
@@ -51,7 +47,7 @@ class Tokens:
         ):
             quit()
 
-    def _check_schwab_tokens(self):
+    def check_schwab_tokens(self):
         """
         Check if the refresh token or access token needs to be updated.
 
@@ -264,14 +260,3 @@ class Tokens:
                 )
         except Exception:
             self._update_refresh_token()
-
-    def update_tokens_automatic(self):
-        """Run a background thread to refresh tokens automatically."""
-
-        def checker():
-            while True:
-                self.reload_settings()
-                self._check_schwab_tokens()
-                time.sleep(60)
-
-        threading.Thread(target=checker, daemon=True).start()

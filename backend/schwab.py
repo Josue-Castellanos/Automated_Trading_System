@@ -3,7 +3,7 @@ from datetime import datetime
 import requests
 
 from backend.config import Settings
-
+from backend.tokens import Tokens
 
 class Schwab:
     def __init__(self):
@@ -15,6 +15,7 @@ class Schwab:
         """
         self.timeout = 5
         self.settings = Settings()
+        self.tokens = Tokens()
 
     def reload_settings(self):
         """
@@ -74,6 +75,7 @@ class Schwab:
             encrypted account values for subsequent calls.
         """
         try:
+            self.tokens.check_schwab_tokens()
             self.reload_settings()
             response = requests.get(
                 f"{self.settings.ACCOUNT_ENDPOINT}/accounts/accountNumbers",
@@ -100,6 +102,7 @@ class Schwab:
             Balances are displayed by default.
             Positions are displayed based on the "positions" flag.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.get(
             f"{self.settings.ACCOUNT_ENDPOINT}/accounts/",
@@ -124,6 +127,7 @@ class Schwab:
             Positions are returned based on the "positions" flag.
         """
         try:
+            self.tokens.check_schwab_tokens()
             self.reload_settings()
             response = requests.get(
                 f"{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}",
@@ -183,6 +187,7 @@ class Schwab:
             Maximum date range is 1 year.
         """
         try:
+            self.tokens.check_schwab_tokens()
             self.reload_settings()
             response = requests.get(
                 f"{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/"
@@ -221,6 +226,7 @@ class Schwab:
             If the order is immediately filled,
             the order number may not be returned.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.post(
             f"{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/"
@@ -244,6 +250,7 @@ class Schwab:
         Returns:
             requests.Response: indicating the result of the cancellation.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.delete(
             f"{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/"
@@ -262,6 +269,7 @@ class Schwab:
         Returns:
             requests.Response: The API response containing the order details.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.get(
             f"{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/"
@@ -316,6 +324,7 @@ class Schwab:
         Returns:
             requests.Response: containing the option chain information.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.get(
             f"{self.settings.MARKET_ENDPOINT}/chains",
@@ -356,6 +365,7 @@ class Schwab:
         Returns:
             requests.Response: containing the option expiration chain.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.get(
             f"{self.settings.MARKET_ENDPOINT}/expirationchain",
@@ -381,6 +391,7 @@ class Schwab:
             The existing order will be canceled
               and a new order will be created.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.put(
             f"{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/"
@@ -434,6 +445,7 @@ class Schwab:
             Maximum date range is 60 days.
         """
         try:
+            self.tokens.check_schwab_tokens()
             self.reload_settings()
             response = requests.get(
                 f"{self.settings.ACCOUNT_ENDPOINT}/orders",
@@ -485,6 +497,7 @@ class Schwab:
             Maximum number of transactions in response is 3000.
             Maximum date range is 1 year.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.get(
             f"{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/"
@@ -514,6 +527,7 @@ class Schwab:
         Returns:
             requests.Response: containing the transaction details.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.get(
             f"{self.settings.ACCOUNT_ENDPOINT}/accounts/{accountNumber}/"
@@ -534,6 +548,7 @@ class Schwab:
         Returns:
             requests.Response: containing user preferences and streaming info.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         try:
             response = requests.get(
@@ -589,6 +604,7 @@ class Schwab:
             requests.Response: containing the price history data.
         """
         try:
+            self.tokens.check_schwab_tokens()
             self.reload_settings()
             response = requests.get(
                 f"{self.settings.MARKET_ENDPOINT}/pricehistory",
@@ -635,6 +651,7 @@ class Schwab:
         Returns:
             requests.Response: containing the movers data.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.get(
             f"{self.settings.MARKET_ENDPOINT}/movers/{symbol}",
@@ -662,6 +679,7 @@ class Schwab:
         Returns:
             requests.Response: containing market hours information.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.get(
             f"{self.settings.MARKET_ENDPOINT}/markets",
@@ -688,6 +706,7 @@ class Schwab:
             requests.Response: containing market hours information
                 for the specified market.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.get(
             f"{self.settings.MARKET_ENDPOINT}/markets/{market_id}",
@@ -733,6 +752,7 @@ class Schwab:
             The behavior and returned data will
             vary based on the chosen projection type.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         valid_projections = [
             "symbol-search",
@@ -774,6 +794,7 @@ class Schwab:
             identifies a North American financial security for the purposes of
             facilitating clearing and settlement of trades.
         """
+        self.tokens.check_schwab_tokens()
         self.reload_settings()
         return requests.get(
             f"{self.settings.MARKET_ENDPOINT}/instruments/{cusip_id}",
