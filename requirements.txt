@@ -137,4 +137,5 @@ argh
 PyYAML
 django-celery-results
 django-celery-beat
+polygon
 

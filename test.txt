@@ -1,0 +1,84 @@
+
+
+SYSTEM ON
+
+1. Check for open trades
+
+    Yes: Copy them to our self.active_trades
+
+    Else: Continue with empty self.active_trades
+
+
+
+2. self.check_triggers()
+
+    2a. self.check_signals()
+
+        Yes: Extract signals details
+
+        Else: Continue to IN TRADE
+ 
+
+    2b. IN TRADE
+
+        Yes: Look to add on a trade if able to, here there will be a 
+            contract symbol inside the active_trades. 
+
+            After buying, pull data and update all active contracts
+            with the pnl% to active_trades.
+
+        No: Look to enter in a trade if able to, there will be no contract
+            symbols.
+
+            After buying, pull data and update the contracts just bought
+            with the pnl% to active_trades.
+
+
+    2c. Build Path Levels
+            ** Since we just updated the current pnl% we can check to trim **
+
+        CALL or PUT:
+            Action: If the contracts pnl% higher than 100% I can trim 
+                at a level broken, only if contract symbol qty > 1. The 
+                runners of each contract remain to reach EM of the day.
+
+                ** Each contract symbol is expected to reach the EM of the day
+                    even if it one left in each contract symbol **
+
+            EM: Above/Broken/Rejected critical level I can sell all contracts 
+                from each contract symbol and keep only 1 from the most recent 
+                contract symbol as a runner. 
+
+
+
+
+
+
+
+
+If im in a position and im following the signals timer for that active signal, 
+ignore any incoming reverse signal
+
+However, if im in a position and the following signal timer expires for that active signal
+you can accept a reversal P1/C1 signal
+
+
+Trim: If contract qty is greater than 1 and is 50% or greater we can trim 1/4 of qty and round up
+
+
+
+If im past the EM then do not accept more
+
+
+
+WHAT NEEDS TO HAPPEN EVER 5 MINUTES:
+
+* Update the contracts
+
+* Check Broken levels
+
+* Update level Paths
+
+* Check for entry signals
+
+* 
