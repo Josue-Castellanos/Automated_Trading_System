@@ -10,7 +10,7 @@ from .strategy.ttm_squeeze import ttm_squeeze_momentum, ttm_squeeze_signals
 from .strategy.open_interest import high_open_interest
 from .strategy.persons_pivots import persons_pivot_levels
 from .strategy.exponential_moving_average import ema_crossover_signals
-from .strategy.expected_move import compute_expected_move_bounds
+from .strategy.expected_move import compute_expected_move_bounds, expected_move_tos_style
 from .strategy.macd import macd_signals
 from .strategy.macd_wilders import macd_wilder_signals
 from .strategy.ichimoku import ichimoku
@@ -31,7 +31,6 @@ class Client:
     This class integrates various components such as Schwab API, signals API,
     and a database manager to perform automated trading operations.
     """
-
     def __init__(self, freq):
         """
         This method sets up initial settings, starts background threads
@@ -60,8 +59,6 @@ class Client:
         self.set_settings()
 
         # Strategy
-        # self.momentum_call_colors = ["darkblue","cyan"]
-        # self.momentum_put_colors = ["purple", "magenta"]
         self.stock_list = ["SPY"]
         self.long_lookback_period = 40 
         self.short_lookback_period = 20
@@ -72,8 +69,6 @@ class Client:
         self.signal = None          # winner signal 
         self.all_signals = None       # all signals dataframe
         self.mode = None         # WAIT, CONSERVATIVE, MODERATE, AGGRESSIVE
-        self.em_up = None
-        self.em_dn = None
         self.active_trades = {
             "contracts": {
                 # "SPY": [
@@ -97,13 +92,14 @@ class Client:
         self.level_plan = {}
         self.in_trade = False
         self.today, self.weekly = dates(self.stock_list[0])
-
-
+        self.em_up, self.em_dn = None
+        
+        self.compute_expected_move(self.stock_list[0])
         # Computes daily levels and bulds level plan
         self.compute_daily_levels(self.stock_list[0])
-        self.update_positions(self.stock_list[0])  # Initial sync of SPY open positions
-
-        # Stream
+        # Initial sync of SPY open positions
+        self.update_positions(self.stock_list[0])  
+        # Start Thread
         self._check_momentum_chain()
 
 
@@ -129,7 +125,6 @@ class Client:
                 
                 # Extract position details
                 con_symbol = pos["instrument"]["symbol"]
-                # con_ticker = con_symbol.split()[0]
                 signal = "CALL" if con_symbol[12:13] == "C" else "PUT"
                 entry_price = pos["averagePrice"]
                 current_price = round(pos["marketValue"] / 100, 2) 
@@ -234,12 +229,10 @@ class Client:
         #FUTURE VERSION
         tickers = list(self.active_trades["contracts"].keys())
 
-        # FIX
-        # What if there is no SPY, like when the system is tunred on??
         contracts = self.active_trades["contracts"].get(ticker, [])
 
         #### FIX
-        open_count = sum(1 for c in contracts if c.get("is_open")) if contracts else 0 # and c["signal"] == self.signal_type )
+        open_count = sum(1 for c in contracts if c.get("is_open")) if contracts else 0       # and c["signal"] == self.signal_type )
         self.in_trade = True if open_count >= 1 else False
 
         # If I received a trigger signal - Not TIE
@@ -393,6 +386,41 @@ class Client:
             # PUT trade flips resistance → support (upside path sorted low → high)
             opposite_path.sort(key=lambda x: x["level"])
              
+    def compute_expected_move(self, symbol):
+        call_options = self.schwab.get_chains(symbol, 'CALL', '100', 'TRUE', 'ANALYTICAL', '', '', 'OTM', self.today, self.today)
+        put_options = self.schwab.get_chains(symbol, 'PUT', '100', 'TRUE', 'ANALYTICAL', '', '', 'OTM', self.today, self.today)
+
+        # This can be from either call or put options since it's the same underlying price
+        stock_price = call_options['underlyingPrice']
+
+        call_strike_price_df = create_option_dataframe(call_options)
+        call_strike_price_df = call_strike_price_df.iloc[:-1]
+        call_strike_price_df = filter_options(call_strike_price_df, 'CALL')
+
+        put_strike_price_df = create_option_dataframe(put_options)
+        put_strike_price_df = put_strike_price_df.iloc[:-1]
+        put_strike_price_df = filter_options(put_strike_price_df, 'PUT')
+
+        # Call ATM option
+        call_atm_iv = call_strike_price_df.iloc[0]['IV'] / 100  # decimal
+        # print(call_atm_iv)
+        call_atm_dte = call_strike_price_df.iloc[0]['DTE']
+
+        # Put ATM option
+        put_atm_iv = put_strike_price_df.iloc[0]['IV'] / 100  # decimal
+        # print(put_atm_iv)
+        put_atm_dte = put_strike_price_df.iloc[0]['DTE']
+
+        # ===================== Expected Move Calculation ( Testing ) =====================
+        # Average the call & put IVs
+        atm_iv_avg = (call_atm_iv + put_atm_iv) / 2
+
+        # Use DTE from either row (same for both)
+        atm_dte = call_atm_dte  # || put_atm_dte
+
+        # Calculate Expected Move
+        self.em_up, self.em_dn = expected_move_tos_style(stock_price, atm_iv_avg, atm_dte)
+
     # ******************************************************************
     # ********************* TRADING SYSTEM *****************************
     # ******************************************************************
@@ -615,7 +643,10 @@ class Client:
 
         # Expected Move
         open_price = float(df_1d.iloc[-1]['Open'])
-        self.em_up, self.em_dn = compute_expected_move_bounds(open_price)
+        self.compute_em()
+
+        # self.em_up, self.em_dn = compute_expected_move_bounds(open_price)
+        # self.em_up, self.em_dn = expected_move_tos_style(open_price, atm_iv, dte)
 
         # Build list of significant levels
         sig_levels = []
@@ -706,12 +737,9 @@ class Client:
             None
         """
         try:
-            logger.info("CREATING BUY ORDER...")
             buy_order = create_order(
                 contract.get("Ask"), contract.get("Symbol"), "BUY", qty
             )
-            logger.info("BUY ORDER CREATED.")
-
             logger.info("POSTING BUY ORDER...")
             self.schwab.post_orders(buy_order, accountNumber=self.hash).json()
         except json.decoder.JSONDecodeError:
@@ -726,13 +754,12 @@ class Client:
                 else:
                     logger.info("CONTRACT BOUGHT!")
                     # self.account_balance -= (25) * self.position_size
-                    return
+                    break
                 max_attempts += 1
 
             logger.info("CONTRACT CANNOT BE BOUGHT, TOO MUCH VOLATILITY!")
             self.delete_pending_position()
 
-            return None
 
     def sell_position(self, ticker, action=None, qty=None):
         """

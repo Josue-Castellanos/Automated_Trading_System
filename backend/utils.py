@@ -91,6 +91,7 @@ def create_order(price, symbol, type, position_size, var="OPEN"):
     Returns:
         dict: A dictionary representing the order details.
     """
+    logger.info(f"CREATING {type} ORDER...")
     if type != "BUY":
         var = "CLOSE"
 
@@ -108,6 +109,7 @@ def create_order(price, symbol, type, position_size, var="OPEN"):
             }
         ],
     }
+    logger.info(f"{type} ORDER CREATED.")
     return order
 
 

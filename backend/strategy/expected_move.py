@@ -31,11 +31,17 @@ def expected_move_tos_style(stock_price, atm_iv, dte):
     """
     if dte > 0:
         # Regular DTE calculation
-        return stock_price * atm_iv * np.sqrt(dte / 365)
+        em = stock_price * atm_iv * np.sqrt(dte / 365)
+        upper_bound = stock_price + em
+        lower_bound = stock_price - em
+        return upper_bound, lower_bound
     else:
         # 0-DTE fractional hours adjustment
         fractional_dte = calculate_fractional_dte_hours()
-        return stock_price * atm_iv * np.sqrt(fractional_dte / 365)
+        em = stock_price * atm_iv * np.sqrt(fractional_dte / 365)
+        upper_bound = stock_price + em
+        lower_bound = stock_price - em
+        return upper_bound, lower_bound
 
 def compute_expected_move_bounds(open_price):
     # Ask user to input the expected move (float)
