@@ -20,7 +20,6 @@ from backend.utils import (create_option_dataframe, create_order,
                                         filter_options, market_is_open,
                                         order_date, timedelta, resolve_signals, 
                                         track_signal_lifetime)
-
 import logging
 logger = logging.getLogger("trading")
 
@@ -39,16 +38,13 @@ class Client:
         """
         # Trading frequency in minutes
         self.freq = freq
-
         # Client
         self.schwab = Schwab()
         self.sheet = Sheet() # Comment out with settings
         self.stream = None
         self.thread = None
-
         # Schwab
         self.hash = self.get_hash()
-
         # GCP - Sheets
         self.daily_roi_per_trade_goal = None   # Goal for each contract
         self.position_size = None       #  quantity of contracts per trade, I'm removing this becasue there is no real amount, its based on 
@@ -57,7 +53,6 @@ class Client:
         self.day_in_sheet = None
         self.current_account_balance = None
         self.set_settings()
-
         # Strategy
         self.stock_list = ["SPY"]
         self.long_lookback_period = 40 
@@ -101,7 +96,6 @@ class Client:
         self.update_positions(self.stock_list[0])  
         # Start Thread
         self._check_momentum_chain()
-
 
     # ******************************************************************
     # ************* ENGINE *********************************************
@@ -228,7 +222,6 @@ class Client:
 
         #FUTURE VERSION
         tickers = list(self.active_trades["contracts"].keys())
-
         contracts = self.active_trades["contracts"].get(ticker, [])
 
         #### FIX
@@ -386,40 +379,7 @@ class Client:
             # PUT trade flips resistance → support (upside path sorted low → high)
             opposite_path.sort(key=lambda x: x["level"])
              
-    def compute_expected_move(self, symbol):
-        call_options = self.schwab.get_chains(symbol, 'CALL', '100', 'TRUE', 'ANALYTICAL', '', '', 'OTM', self.today, self.today)
-        put_options = self.schwab.get_chains(symbol, 'PUT', '100', 'TRUE', 'ANALYTICAL', '', '', 'OTM', self.today, self.today)
 
-        # This can be from either call or put options since it's the same underlying price
-        stock_price = call_options['underlyingPrice']
-
-        call_strike_price_df = create_option_dataframe(call_options)
-        call_strike_price_df = call_strike_price_df.iloc[:-1]
-        call_strike_price_df = filter_options(call_strike_price_df, 'CALL')
-
-        put_strike_price_df = create_option_dataframe(put_options)
-        put_strike_price_df = put_strike_price_df.iloc[:-1]
-        put_strike_price_df = filter_options(put_strike_price_df, 'PUT')
-
-        # Call ATM option
-        call_atm_iv = call_strike_price_df.iloc[0]['IV'] / 100  # decimal
-        # print(call_atm_iv)
-        call_atm_dte = call_strike_price_df.iloc[0]['DTE']
-
-        # Put ATM option
-        put_atm_iv = put_strike_price_df.iloc[0]['IV'] / 100  # decimal
-        # print(put_atm_iv)
-        put_atm_dte = put_strike_price_df.iloc[0]['DTE']
-
-        # ===================== Expected Move Calculation ( Testing ) =====================
-        # Average the call & put IVs
-        atm_iv_avg = (call_atm_iv + put_atm_iv) / 2
-
-        # Use DTE from either row (same for both)
-        atm_dte = call_atm_dte  # || put_atm_dte
-
-        # Calculate Expected Move
-        self.em_up, self.em_dn = expected_move_tos_style(stock_price, atm_iv_avg, atm_dte)
 
     # ******************************************************************
     # ********************* TRADING SYSTEM *****************************
@@ -612,6 +572,41 @@ class Client:
 # ###########################################################################
 # *********************** SCHWAB API INTERACTIONS **************************
 # ###########################################################################
+    def compute_expected_move(self, symbol):
+        call_options = self.schwab.get_chains(symbol, 'CALL', '100', 'TRUE', 'ANALYTICAL', '', '', 'OTM', self.today, self.today)
+        put_options = self.schwab.get_chains(symbol, 'PUT', '100', 'TRUE', 'ANALYTICAL', '', '', 'OTM', self.today, self.today)
+
+        # This can be from either call or put options since it's the same underlying price
+        stock_price = call_options['underlyingPrice']
+
+        call_strike_price_df = create_option_dataframe(call_options)
+        call_strike_price_df = call_strike_price_df.iloc[:-1]
+        call_strike_price_df = filter_options(call_strike_price_df, 'CALL')
+
+        put_strike_price_df = create_option_dataframe(put_options)
+        put_strike_price_df = put_strike_price_df.iloc[:-1]
+        put_strike_price_df = filter_options(put_strike_price_df, 'PUT')
+
+        # Call ATM option
+        call_atm_iv = call_strike_price_df.iloc[0]['IV'] / 100  # decimal
+        # print(call_atm_iv)
+        call_atm_dte = call_strike_price_df.iloc[0]['DTE']
+
+        # Put ATM option
+        put_atm_iv = put_strike_price_df.iloc[0]['IV'] / 100  # decimal
+        # print(put_atm_iv)
+        put_atm_dte = put_strike_price_df.iloc[0]['DTE']
+
+        # ===================== Expected Move Calculation ( Testing ) =====================
+        # Average the call & put IVs
+        atm_iv_avg = (call_atm_iv + put_atm_iv) / 2
+
+        # Use DTE from either row (same for both)
+        atm_dte = call_atm_dte  # || put_atm_dte
+
+        # Calculate Expected Move
+        self.em_up, self.em_dn = expected_move_tos_style(stock_price, atm_iv_avg, atm_dte)
+
     def compute_daily_levels(self, ticker):
         """
         Compute daily levels such as Persons Pivots, Previous Daily High & Low,
@@ -643,10 +638,7 @@ class Client:
 
         # Expected Move
         open_price = float(df_1d.iloc[-1]['Open'])
-        self.compute_em()
-
         # self.em_up, self.em_dn = compute_expected_move_bounds(open_price)
-        # self.em_up, self.em_dn = expected_move_tos_style(open_price, atm_iv, dte)
 
         # Build list of significant levels
         sig_levels = []
@@ -760,7 +752,6 @@ class Client:
             logger.info("CONTRACT CANNOT BE BOUGHT, TOO MUCH VOLATILITY!")
             self.delete_pending_position()
 
-
     def sell_position(self, ticker, action=None, qty=None):
         """
         Sell based on the action.
@@ -841,61 +832,6 @@ class Client:
                 logger.error("SELL ORDER POSTED!!")
                 if action in ["EXITALL", "REVERSE"]:
                     contract_info["is_open"] = False
-        
-    def sell_positionV1(self, action=None, qty=None):
-        """
-        Sell the current open position.
-
-        This method attempts to sell the currently open position based on
-        the current market value and the initial purchase price.
-
-        Returns:
-            None
-        """
-        try:
-            # RASIE KEY EXCEPTION: If there are no open positions, exit.
-            logger.info("SEARCHING FOR ACTIVE CONTRACTS...")
-            open_position = self.schwab.account_number(self.hash, "positions")
-
-            # I will either sell all or partial qty
-            if qty is None:
-                # Sell all quantity
-                qty = int(
-                    open_position["securitiesAccount"]["positions"][0]["longQuantity"]
-                )
-                
-            market_value = (
-                open_position["securitiesAccount"]["positions"][0]["marketValue"] / 100
-            )
-            symbol = open_position["securitiesAccount"]["positions"][0]["instrument"][
-                "symbol"
-            ]
-            logger.info("ACTIVE CONTRACT FOUND!")
-
-            logger.info("CREATING SELL ORDER...")
-            sell_order = create_order(
-                round(market_value, 2), symbol, "SELL", qty
-            )
-            logger.info("SELL ORDER CREATED.")
-
-            logger.info("POSTING SELL ORDER...")
-            self.schwab.post_orders(sell_order, accountNumber=self.hash).json()
-        except json.decoder.JSONDecodeError:
-            logger.error("SELL ORDER POSTED, PENDING ACTIVATION...")
-        except KeyError:
-            logger.error("NO ACTIVE CONTRACTS FOUND TO SELL.")
-            return
-        max_attempts = 0
-        while True:
-            time.sleep(5)
-            if self.get_position_type() is None:
-                logger.info("CONTRACT SOLD!")
-                self.obos_counter = 0
-                break
-            else:
-                logger.info(f"ERROR: ORDER REPLACEMENT: {max_attempts + 1}.")
-                self.replace_position(qty, order_status="SELL")
-            max_attempts += 1
 
     def replace_position(self, qty, ticker, order_type=None, order_status=None):
         """ """
@@ -1124,8 +1060,6 @@ class Client:
 
                 # NEXT VERSION : Update stock list from sheet
                 # self.update_stock_list()
-
-                # I think I will put the for loop here to avoid threading issues
                 for ticker in self.stock_list:
                     self.update_positions(ticker)
                     self.check_triggers(ticker)
