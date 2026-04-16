@@ -1,10 +1,8 @@
 import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
-from backend.tokens import Tokens
 from backend.client import Client
 from backend.utils import market_is_open
 import backend.log
-
 import logging
 logger = logging.getLogger("trading")
 

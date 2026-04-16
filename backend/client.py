@@ -87,7 +87,8 @@ class Client:
         self.level_plan = {}
         self.in_trade = False
         self.today, self.weekly = dates(self.stock_list[0])
-        self.em_up, self.em_dn = None
+        self.em_up = None
+        self.em_dn = None
         
         self.compute_expected_move(self.stock_list[0])
         # Computes daily levels and bulds level plan
@@ -109,14 +110,16 @@ class Client:
         """
         try: 
             account_info = self.schwab.account_number(self.hash, "positions")
-            open_positions = account_info["securitiesAccount"]["positions"]
+
+            # Reversing the Schwab contracts so the most recent cons are checked first
+            open_positions = dict(reversed(account_info["securitiesAccount"]["positions"].items()))
 
             #Copy open positions to active_trades structure
             for pos in open_positions:
                 # Only consider SPY positions for now...
                 if not pos["instrument"]["symbol"].startswith(ticker):
                     continue # skip non ticker positions
-                
+
                 # Extract position details
                 con_symbol = pos["instrument"]["symbol"]
                 signal = "CALL" if con_symbol[12:13] == "C" else "PUT"
@@ -145,15 +148,12 @@ class Client:
                     self.active_trades["total_invested"] += total_cost
                     continue
 
-                # Here i need to check if the contract already exists in active trades
-                # But there is an issue where I might have multiple contracts of the same
-                # symbol if I added to existing positions. So I need to loop through them
-                # The else clause should only trigger if the contract is not found in any of the existing ones
+
                 found = False
                 for con in self.active_trades["contracts"][ticker]:
                     # Find which trade this position belongs to
-                    if con.get("symbol") == con_symbol:
-                        logger.info(f"UPDATED {con_symbol} || {con["pnl"]} --> {unrealized_pnl}")
+                    if con.get("symbol") == con_symbol & con.get("is_open"): 
+                        logger.info(f"UPDATED {con_symbol} || {con["pnl"]}% --> {unrealized_pnl}%")
                         con["entry_price"] = entry_price
                         con["qty"] = qty
                         con["current_price"] = current_price
@@ -193,14 +193,14 @@ class Client:
         if self.mode == "WAIT":
             logger.error(f"STEP 4: MARKET SQUEEZING --> {self.mode} mode")
             return
-        # # SKIP signals if passed EM in same direction
-        # if self.signal_type == "CALL" and current_price > self.em_up:
-        #     logger.info(f"STEP 4: PASSED EM UP LEVEL at {self.em_up}, cannot accept new CALL signals.")
-        #     return
-        # # SKIP signals if passed EM in same direction
-        # if self.signal_type == "PUT" and current_price < self.em_dn:
-        #     logger.info(f"STEP 4: PASSED EM DN LEVEL at {self.em_dn}, cannot accept new PUT signals.")
-        #     return
+        # SKIP signals if passed EM in same direction
+        if self.signal_type == "CALL" and current_price > self.em_up:
+            logger.info(f"STEP 4: PASSED EM UP LEVEL at {self.em_up}, cannot accept new CALL signals.")
+            return
+        # SKIP signals if passed EM in same direction
+        if self.signal_type == "PUT" and current_price < self.em_dn:
+            logger.info(f"STEP 4: PASSED EM DN LEVEL at {self.em_dn}, cannot accept new PUT signals.")
+            return
         # # SKIP signals if it goes against the active signals timers. Ex: Call4h > P5
         # if self.active_signal_type == "CALL" and self.signal_type == "PUT":
         #     logger.info(f"STEP 4: {self.signal_type} -> {self.signal} vs {self.active_signal_type} -> {self.active_signal}")
@@ -210,15 +210,15 @@ class Client:
         #     logger.info(f"STEP 4: {self.signal_type} -> {self.signal} vs {self.active_signal_type} -> {self.active_signal}")
         #     return
         # SKIP if signal type is PUT and ticker is not ["SPY", "QQQ", "DIA", "IWM"]
-        if self.signal_type == "PUT" and ticker not in ["SPY", "QQQ", "DIA", "IWM"]:
-            logger.info(f"STEP 4: SKIPPING PUT SIGNALS FOR {ticker} - Signal: {self.signal}  Type: {self.signal_type} --> Active: {self.active_signal}  Type: {self.active_signal_type}")
-            return
+        # if self.signal_type == "PUT" and ticker not in ["SPY", "QQQ", "DIA", "IWM"]:
+        #     logger.info(f"STEP 4: SKIPPING PUT SIGNALS FOR {ticker} - Signal: {self.signal}  Type: {self.signal_type} --> Active: {self.active_signal}  Type: {self.active_signal_type}")
+        #     return
         # SKIP if no valid signal
         if self.signal_type not in ["CALL", "PUT"]:
             logger.info(f"STEP 4: NO VALID SIGNAL - Signal: {self.signal}  Type: {self.signal_type} --> Active: {self.active_signal}  Type: {self.active_signal_type}")
             return
         # SKIP if 1hr, 2hr, 4hr signal received is not confirmed with lower timeframe signal as well.
-  
+        
 
         #FUTURE VERSION
         tickers = list(self.active_trades["contracts"].keys())
@@ -379,8 +379,7 @@ class Client:
             # PUT trade flips resistance → support (upside path sorted low → high)
             opposite_path.sort(key=lambda x: x["level"])
              
-
-
+             
     # ******************************************************************
     # ********************* TRADING SYSTEM *****************************
     # ******************************************************************
@@ -828,6 +827,7 @@ class Client:
                         sell_order = create_order(current_price, con_symbol, "SELL", qty)
                         logger.info(f"SELLING {qty} CONTRACTS OF {con_symbol}")
                         self.schwab.post_orders(sell_order, accountNumber=self.hash).json()
+                        
             except json.decoder.JSONDecodeError:
                 logger.error("SELL ORDER POSTED!!")
                 if action in ["EXITALL", "REVERSE"]:
