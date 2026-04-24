@@ -74,7 +74,7 @@ def convert_epoch_to_datetime(epoch_ms):
     Daylight Saving Time (DST) is not considered here; adjust as needed.
     """
     datetime_parsed = pd.to_datetime(epoch_ms, unit="ms")
-    datetime_adjusted = datetime_parsed - timedelta(hours=8)  # Adjust for daylight saving
+    datetime_adjusted = datetime_parsed - timedelta(hours=7)  # Adjust for daylight saving
     return datetime_adjusted
 
 
@@ -301,7 +301,8 @@ def _aggregate_candle_dataframe(candles, freq_hours):
     aggregated_data = []
 
     # Group by date for day-wise processing
-    df['Date'] = df['Datetime'].dt.date
+    df.loc[:, 'Date'] = df['Datetime'].dt.date
+    # df['Date'] = df['Datetime'].dt.date
     for date, group in df.groupby('Date'):
         group = group.reset_index(drop=True)
 
