@@ -22,8 +22,8 @@ class Scheduler:
         self.scheduler.start()
         
         # Check if market is already open when script starts
-        # if market_is_open():
-        self.start()
+        if market_is_open():
+            self.start()
 
 
     def start(self):
@@ -47,9 +47,9 @@ if __name__ == "__main__":
     logger.info("Scheduler script started")
     scheduler = Scheduler()
 
-    # try:
-    #     while True:
-    #         pass  # Keeps the script alive
-    # except KeyboardInterrupt:
-    #     logger.error("Scheduler stopped manually.")
+    try:
+        while True:
+            pass  # Keeps the script alive
+    except KeyboardInterrupt:
+        logger.error("Scheduler stopped manually.")
         
