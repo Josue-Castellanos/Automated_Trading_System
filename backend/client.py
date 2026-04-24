@@ -110,9 +110,9 @@ class Client:
         """
         try: 
             account_info = self.schwab.account_number(self.hash, "positions")
-
+            open_positions = account_info["securitiesAccount"]["positions"]
             # Reversing the Schwab contracts so the most recent cons are checked first
-            open_positions = dict(reversed(account_info["securitiesAccount"]["positions"].items()))
+            open_positions = list(reversed(open_positions))
 
             #Copy open positions to active_trades structure
             for pos in open_positions:
@@ -152,7 +152,7 @@ class Client:
                 found = False
                 for con in self.active_trades["contracts"][ticker]:
                     # Find which trade this position belongs to
-                    if con.get("symbol") == con_symbol & con.get("is_open"): 
+                    if con.get("symbol") == con_symbol and con.get("is_open"): 
                         logger.info(f"UPDATED {con_symbol} || {con["pnl"]}% --> {unrealized_pnl}%")
                         con["entry_price"] = entry_price
                         con["qty"] = qty
@@ -840,7 +840,8 @@ class Client:
             account_orders = self.schwab.account_orders(
                 maxResults=1,
                 fromEnteredTime=order_date(),
-                toEnteredTime=self.today,  # self.tomorrow? This is casuing issues on friday's
+                # This is casuing issues on friday's I need to figure out if its tomorrow or today
+                toEnteredTime=self.today,  # self.tomorrow? 
                 accountNumber=self.hash,
                 status="WORKING",
             )
@@ -894,7 +895,7 @@ class Client:
             account_orders = self.schwab.account_orders(
                 maxResults=5,
                 fromEnteredTime=order_date(),
-                toEnteredTime=self.tomorrow,
+                toEnteredTime=self.today,
                 accountNumber=self.hash,
                 status="PENDING_ACTIVATION",
             )
