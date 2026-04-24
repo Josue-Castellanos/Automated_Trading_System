@@ -165,24 +165,24 @@ def ttm_squeeze_signals(
         d = df.copy()
 
         # --- Keltner Midline & ATR ---
-        d["Keltner_Mid"] = d["Close"].ewm(span=length, adjust=False).mean()
-        d["tr1"] = d["High"] - d["Low"]
-        d["tr2"] = (d["High"] - d["Close"].shift(1)).abs()
-        d["tr3"] = (d["Low"] - d["Close"].shift(1)).abs()
-        d["true_range"] = d[["tr1", "tr2", "tr3"]].max(axis=1)
-        d["atr"] = d["true_range"].ewm(span=length, adjust=False).mean()
+        d.loc[:, 'Keltner_Mid'] = d["Close"].ewm(span=length, adjust=False).mean()
+        d.loc[:, 'tr1'] = d["High"] - d["Low"]
+        d.loc[:, 'tr2'] = (d["High"] - d["Close"].shift(1)).abs()
+        d.loc[:, 'tr3'] = (d["Low"] - d["Close"].shift(1)).abs()
+        d.loc[:, 'true_range'] = d[["tr1", "tr2", "tr3"]].max(axis=1)
+        d.loc[:, 'atr'] = d["true_range"].ewm(span=length, adjust=False).mean()
 
         # --- Keltner Bands ---
-        d["KeltMid"] = d["Keltner_Mid"] + nK_Mid * d["atr"]
-        d["KeltLower"] = d["Keltner_Mid"] - nK_Mid * d["atr"]
+        d.loc[:, 'KeltMid'] = d["Keltner_Mid"] + nK_Mid * d["atr"]
+        d.loc[:, 'KeltLower'] = d["Keltner_Mid"] - nK_Mid * d["atr"]
 
         # --- Bollinger Bands ---
         bb_mid = d["Close"].ewm(span=length, adjust=False).mean()
-        d["BB_Upper"] = bb_mid + d["Close"].rolling(window=length).std() * nBB
-        d["BB_Lower"] = bb_mid - d["Close"].rolling(window=length).std() * nBB
+        d.loc[:, 'BB_Upper'] = bb_mid + d["Close"].rolling(window=length).std() * nBB
+        d.loc[:,'BB_Lower'] = bb_mid - d["Close"].rolling(window=length).std() * nBB
 
         # --- Squeeze condition ---
-        d["squeeze_on"] = (d["BB_Lower"] > d["KeltLower"]) & (d["BB_Upper"] < d["KeltMid"])
+        d.loc[:, 'squeeze_on'] = (d["BB_Lower"] > d["KeltLower"]) & (d["BB_Upper"] < d["KeltMid"])
 
         # --- Squeeze Fired Logic ---
         fired = (~d["squeeze_on"]) & (d["squeeze_on"].shift(1) == True)
